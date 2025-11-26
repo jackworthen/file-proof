@@ -715,7 +715,6 @@ class DataValidatorApp:
                       lightcolor='#64B5F6',
                       darkcolor='#1976D2')
 
-
 def main():
     """Main entry point."""
     root = tk.Tk()
