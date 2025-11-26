@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Data File Validator
 A robust application for validating data files with various formats and delimiters.
@@ -419,12 +420,31 @@ class DataValidatorApp:
         style = ttk.Style()
         style.theme_use('clam')
         
+        # Configure colorful progress bar
+        style.configure("Colorful.Horizontal.TProgressbar",
+                       troughcolor='#E0E0E0',
+                       bordercolor='#BDBDBD',
+                       background='#4CAF50',  # Green
+                       lightcolor='#81C784',
+                       darkcolor='#388E3C')
+        
+        # Create accent button style with lighter blue
+        style.configure('Accent.TButton',
+                       background='#90CAF9',  # Light blue
+                       foreground='#000000',
+                       borderwidth=1,
+                       focuscolor='none',
+                       font=('Helvetica', 10, 'bold'))
+        style.map('Accent.TButton',
+                 background=[('active', '#64B5F6')])
+        
         # Variables
         self.filepath = tk.StringVar()
         self.filetype = tk.StringVar(value="auto")
         self.delimiter = tk.StringVar(value="auto")
         self.validation_running = False
         self.current_report = None
+        self.progress_color_state = 0
         
         self.setup_ui()
         
@@ -473,7 +493,7 @@ class DataValidatorApp:
         delimiter_combo.grid(row=0, column=3, sticky=tk.W, padx=5)
         
         # Validate button
-        self.validate_btn = ttk.Button(options_frame, text="Validate File", 
+        self.validate_btn = ttk.Button(options_frame, text="🔍 Validate File", 
                                        command=self.start_validation,
                                        style='Accent.TButton')
         self.validate_btn.grid(row=0, column=4, sticky=tk.E, padx=(20, 0))
@@ -484,11 +504,14 @@ class DataValidatorApp:
         progress_frame.grid(row=3, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         progress_frame.columnconfigure(0, weight=1)
         
-        self.progress_label = ttk.Label(progress_frame, text="")
+        self.progress_label = ttk.Label(progress_frame, text="", font=('Helvetica', 9))
         self.progress_label.grid(row=0, column=0, sticky=tk.W)
         
-        self.progress_bar = ttk.Progressbar(progress_frame, mode='determinate', length=400)
-        self.progress_bar.grid(row=1, column=0, sticky=(tk.W, tk.E))
+        self.progress_bar = ttk.Progressbar(progress_frame, 
+                                           mode='determinate', 
+                                           length=400,
+                                           style="Colorful.Horizontal.TProgressbar")
+        self.progress_bar.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(5, 0))
         
         # Results frame
         results_frame = ttk.LabelFrame(main_frame, text="Validation Results", padding="10")
@@ -572,6 +595,13 @@ class DataValidatorApp:
         filetype = self.filetype.get()
         delimiter = self.get_delimiter()
         
+        # Reset progress bar to starting color
+        style = ttk.Style()
+        style.configure("Colorful.Horizontal.TProgressbar",
+                      background='#2196F3',
+                      lightcolor='#64B5F6',
+                      darkcolor='#1976D2')
+        
         try:
             # Determine file type
             if filetype == "auto":
@@ -603,12 +633,39 @@ class DataValidatorApp:
         finally:
             self.validation_running = False
             self.root.after(0, lambda: self.validate_btn.config(state='normal'))
-            self.root.after(0, lambda: self.progress_bar.config(value=0))
     
     def update_progress(self, progress, rows):
-        """Update the progress bar and label."""
+        """Update the progress bar and label with dynamic colors."""
         self.progress_bar['value'] = progress
         self.progress_label.config(text=f"Processing... {progress:.1f}% ({rows:,} rows)")
+        
+        # Dynamic color changes based on progress
+        style = ttk.Style()
+        if progress < 25:
+            # Blue for early stage
+            style.configure("Colorful.Horizontal.TProgressbar",
+                          background='#2196F3',  # Blue
+                          lightcolor='#64B5F6',
+                          darkcolor='#1976D2')
+        elif progress < 50:
+            # Cyan for second quarter
+            style.configure("Colorful.Horizontal.TProgressbar",
+                          background='#00BCD4',  # Cyan
+                          lightcolor='#4DD0E1',
+                          darkcolor='#0097A7')
+        elif progress < 75:
+            # Orange for third quarter
+            style.configure("Colorful.Horizontal.TProgressbar",
+                          background='#FF9800',  # Orange
+                          lightcolor='#FFB74D',
+                          darkcolor='#F57C00')
+        else:
+            # Green for final stage
+            style.configure("Colorful.Horizontal.TProgressbar",
+                          background='#4CAF50',  # Green
+                          lightcolor='#81C784',
+                          darkcolor='#388E3C')
+        
         self.root.update_idletasks()
     
     def display_results(self, report: ValidationReport):
@@ -617,11 +674,33 @@ class DataValidatorApp:
         report_text = report.generate_report()
         self.results_text.insert('1.0', report_text)
         
-        # Color code the result
+        # Color code the result with enhanced styling
         if report.passed:
-            self.progress_label.config(text="✓ Validation Passed", foreground='green')
+            self.progress_label.config(
+                text="✓ Validation Passed - File is Valid!", 
+                foreground='#4CAF50',
+                font=('Helvetica', 10, 'bold')
+            )
+            # Set progress bar to green for success
+            style = ttk.Style()
+            style.configure("Colorful.Horizontal.TProgressbar",
+                          background='#4CAF50',
+                          lightcolor='#81C784',
+                          darkcolor='#388E3C')
+            self.progress_bar['value'] = 100
         else:
-            self.progress_label.config(text="✗ Validation Failed", foreground='red')
+            self.progress_label.config(
+                text=f"✗ Validation Failed - {len(report.errors)} Error(s) Found", 
+                foreground='#F44336',
+                font=('Helvetica', 10, 'bold')
+            )
+            # Set progress bar to red for failure
+            style = ttk.Style()
+            style.configure("Colorful.Horizontal.TProgressbar",
+                          background='#F44336',
+                          lightcolor='#E57373',
+                          darkcolor='#D32F2F')
+            self.progress_bar['value'] = 100
         
         # Auto-scroll to top
         self.results_text.see('1.0')
@@ -650,8 +729,15 @@ class DataValidatorApp:
     def clear_results(self):
         """Clear the results display."""
         self.results_text.delete('1.0', tk.END)
-        self.progress_label.config(text="", foreground='black')
+        self.progress_label.config(text="", foreground='black', font=('Helvetica', 9))
         self.progress_bar['value'] = 0
+        
+        # Reset progress bar to default blue color
+        style = ttk.Style()
+        style.configure("Colorful.Horizontal.TProgressbar",
+                      background='#2196F3',
+                      lightcolor='#64B5F6',
+                      darkcolor='#1976D2')
 
 
 def main():
