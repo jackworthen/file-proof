@@ -456,8 +456,6 @@ class DataValidatorApp:
         
         # Variables
         self.filepath = tk.StringVar()
-        self.filetype = tk.StringVar(value="auto")
-        self.delimiter = tk.StringVar(value="auto")
         self.validation_running = False
         self.current_report = None
         self.progress_color_state = 0
@@ -473,7 +471,7 @@ class DataValidatorApp:
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(0, weight=1)
-        main_frame.rowconfigure(3, weight=1)
+        main_frame.rowconfigure(2, weight=1)
         
         # File selection frame
         file_frame = ttk.LabelFrame(main_frame, text="File Selection", padding="10")
@@ -484,35 +482,17 @@ class DataValidatorApp:
         ttk.Entry(file_frame, textvariable=self.filepath, width=60).grid(
             row=0, column=1, sticky=(tk.W, tk.E), padx=5)
         ttk.Button(file_frame, text="Browse", command=self.browse_file).grid(
-            row=0, column=2, sticky=tk.E)
+            row=0, column=2, sticky=tk.E, padx=(0, 10))
         
-        # Validation options frame
-        options_frame = ttk.LabelFrame(main_frame, text="Validation Options", padding="10")
-        options_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
-        
-        ttk.Label(options_frame, text="File Type:").grid(row=0, column=0, sticky=tk.W)
-        filetype_combo = ttk.Combobox(options_frame, textvariable=self.filetype, 
-                                      values=["auto", "csv", "json", "delimited"], 
-                                      state="readonly", width=15)
-        filetype_combo.grid(row=0, column=1, sticky=tk.W, padx=5)
-        
-        ttk.Label(options_frame, text="Delimiter:").grid(row=0, column=2, sticky=tk.W, padx=(20, 0))
-        delimiter_combo = ttk.Combobox(options_frame, textvariable=self.delimiter,
-                                       values=["auto", "comma (,)", "pipe (|)", 
-                                              "tab (\\t)", "asterisk (*)", "semicolon (;)"],
-                                       state="readonly", width=15)
-        delimiter_combo.grid(row=0, column=3, sticky=tk.W, padx=5)
-        
-        # Validate button
-        self.validate_btn = ttk.Button(options_frame, text="🔍 Validate File", 
+        # Validate button in the same frame
+        self.validate_btn = ttk.Button(file_frame, text="🔍 Validate File", 
                                        command=self.start_validation,
                                        style='Accent.TButton')
-        self.validate_btn.grid(row=0, column=4, sticky=tk.E, padx=(20, 0))
-        options_frame.columnconfigure(4, weight=1)
+        self.validate_btn.grid(row=0, column=3, sticky=tk.E)
         
         # Progress frame
         progress_frame = ttk.Frame(main_frame)
-        progress_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        progress_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         progress_frame.columnconfigure(0, weight=1)
         
         self.progress_label = ttk.Label(progress_frame, text="", font=('Helvetica', 9))
@@ -526,7 +506,7 @@ class DataValidatorApp:
         
         # Results frame
         results_frame = ttk.LabelFrame(main_frame, text="Validation Results", padding="10")
-        results_frame.grid(row=3, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
+        results_frame.grid(row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
         results_frame.columnconfigure(0, weight=1)
         results_frame.rowconfigure(0, weight=1)
         
@@ -536,7 +516,7 @@ class DataValidatorApp:
         
         # Buttons frame
         buttons_frame = ttk.Frame(main_frame)
-        buttons_frame.grid(row=4, column=0, sticky=tk.E)
+        buttons_frame.grid(row=3, column=0, sticky=tk.E)
         
         ttk.Button(buttons_frame, text="Save Report", 
                   command=self.save_report).grid(row=0, column=0, padx=5)
@@ -559,23 +539,6 @@ class DataValidatorApp:
         )
         if filename:
             self.filepath.set(filename)
-    
-    def get_delimiter(self) -> Optional[str]:
-        """Get the delimiter from the combobox selection."""
-        delim_value = self.delimiter.get()
-        if delim_value == "auto":
-            return None
-        elif "comma" in delim_value:
-            return ","
-        elif "pipe" in delim_value:
-            return "|"
-        elif "tab" in delim_value:
-            return "\t"
-        elif "asterisk" in delim_value:
-            return "*"
-        elif "semicolon" in delim_value:
-            return ";"
-        return None
     
     def start_validation(self):
         """Start the validation process in a separate thread."""
@@ -603,8 +566,10 @@ class DataValidatorApp:
     def run_validation(self):
         """Run the validation process."""
         filepath = self.filepath.get()
-        filetype = self.filetype.get()
-        delimiter = self.get_delimiter()
+        
+        # Always auto-detect file type and delimiter
+        filetype = "auto"
+        delimiter = None
         
         # Reset progress bar to starting color
         style = ttk.Style()
@@ -731,7 +696,7 @@ class DataValidatorApp:
         
         if filename:
             try:
-                with open(filename, 'w') as f:
+                with open(filename, 'w', encoding='utf-8') as f:
                     f.write(self.current_report.generate_report())
                 messagebox.showinfo("Success", f"Report saved to {filename}")
             except Exception as e:
