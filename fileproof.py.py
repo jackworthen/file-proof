@@ -155,20 +155,36 @@ class DelimitedFileValidator:
                 delimiter_counts[delim].append(count)
         
         # Find delimiter with most consistent count (and count > 0)
-        best_delimiter = ','
+        best_delimiter = None
         best_score = -1
         
         for delim, counts in delimiter_counts.items():
             if not counts or all(c == 0 for c in counts):
                 continue
-            # Check consistency (standard deviation should be low)
-            if len(set(counts)) == 1 and counts[0] > 0:  # Perfect consistency
+            
+            # Calculate consistency score
+            unique_counts = set(counts)
+            if len(unique_counts) == 1 and counts[0] > 0:
+                # Perfect consistency - this is ideal
+                avg_count = counts[0]
+                consistency_score = avg_count * 100  # Heavy weight for perfect consistency
+                
+                if consistency_score > best_score:
+                    best_score = consistency_score
+                    best_delimiter = delim
+            elif len(unique_counts) <= 3:  # Allow some variation
+                # Good enough consistency
                 avg_count = sum(counts) / len(counts)
-                if avg_count > best_score:
-                    best_score = avg_count
+                # Calculate variance penalty
+                variance = sum((c - avg_count) ** 2 for c in counts) / len(counts)
+                consistency_score = avg_count * (1 / (1 + variance))
+                
+                if consistency_score > best_score and avg_count > 0:
+                    best_score = consistency_score
                     best_delimiter = delim
         
-        return best_delimiter
+        # If still no delimiter found, default to comma
+        return best_delimiter if best_delimiter else ','
     
     def _count_delimiter_outside_quotes(self, line: str, delimiter: str) -> int:
         """Count delimiters that are outside quoted sections."""
@@ -414,7 +430,7 @@ class DataValidatorApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Data File Validator")
-        self.root.geometry("1000x700")
+        self.root.geometry("800x700")
         
         # Set style
         style = ttk.Style()
@@ -459,14 +475,9 @@ class DataValidatorApp:
         main_frame.columnconfigure(0, weight=1)
         main_frame.rowconfigure(3, weight=1)
         
-        # Title
-        title_label = ttk.Label(main_frame, text="Data File Validator", 
-                               font=('Helvetica', 16, 'bold'))
-        title_label.grid(row=0, column=0, pady=(0, 10), sticky=tk.W)
-        
         # File selection frame
         file_frame = ttk.LabelFrame(main_frame, text="File Selection", padding="10")
-        file_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        file_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         file_frame.columnconfigure(1, weight=1)
         
         ttk.Label(file_frame, text="File:").grid(row=0, column=0, sticky=tk.W)
@@ -477,7 +488,7 @@ class DataValidatorApp:
         
         # Validation options frame
         options_frame = ttk.LabelFrame(main_frame, text="Validation Options", padding="10")
-        options_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        options_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         
         ttk.Label(options_frame, text="File Type:").grid(row=0, column=0, sticky=tk.W)
         filetype_combo = ttk.Combobox(options_frame, textvariable=self.filetype, 
@@ -501,7 +512,7 @@ class DataValidatorApp:
         
         # Progress frame
         progress_frame = ttk.Frame(main_frame)
-        progress_frame.grid(row=3, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        progress_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         progress_frame.columnconfigure(0, weight=1)
         
         self.progress_label = ttk.Label(progress_frame, text="", font=('Helvetica', 9))
@@ -515,7 +526,7 @@ class DataValidatorApp:
         
         # Results frame
         results_frame = ttk.LabelFrame(main_frame, text="Validation Results", padding="10")
-        results_frame.grid(row=4, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
+        results_frame.grid(row=3, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
         results_frame.columnconfigure(0, weight=1)
         results_frame.rowconfigure(0, weight=1)
         
@@ -525,7 +536,7 @@ class DataValidatorApp:
         
         # Buttons frame
         buttons_frame = ttk.Frame(main_frame)
-        buttons_frame.grid(row=5, column=0, sticky=tk.E)
+        buttons_frame.grid(row=4, column=0, sticky=tk.E)
         
         ttk.Button(buttons_frame, text="Save Report", 
                   command=self.save_report).grid(row=0, column=0, padx=5)
