@@ -429,7 +429,7 @@ class DataValidatorApp:
     
     def __init__(self, root):
         self.root = root
-        self.root.title("Data File Validator")
+        self.root.title("File Proof")
         self.root.geometry("800x700")
         
         # Set style
@@ -474,7 +474,7 @@ class DataValidatorApp:
         main_frame.rowconfigure(2, weight=1)
         
         # File selection frame
-        file_frame = ttk.LabelFrame(main_frame, text="File Selection", padding="10")
+        file_frame = ttk.LabelFrame(main_frame, text="Select File", padding="10")
         file_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         file_frame.columnconfigure(1, weight=1)
         
@@ -505,7 +505,7 @@ class DataValidatorApp:
         self.progress_bar.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(5, 0))
         
         # Results frame
-        results_frame = ttk.LabelFrame(main_frame, text="Validation Results", padding="10")
+        results_frame = ttk.LabelFrame(main_frame, text="Validation Report", padding="10")
         results_frame.grid(row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
         results_frame.columnconfigure(0, weight=1)
         results_frame.rowconfigure(0, weight=1)
