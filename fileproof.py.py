@@ -571,10 +571,10 @@ class DataValidatorApp:
         filetype = "auto"
         delimiter = None
         
-        # Reset progress bar to starting color
+        # Set progress bar to blue for running state
         style = ttk.Style()
         style.configure("Colorful.Horizontal.TProgressbar",
-                      background='#2196F3',
+                      background='#2196F3',  # Blue
                       lightcolor='#64B5F6',
                       darkcolor='#1976D2')
         
@@ -611,36 +611,12 @@ class DataValidatorApp:
             self.root.after(0, lambda: self.validate_btn.config(state='normal'))
     
     def update_progress(self, progress, rows):
-        """Update the progress bar and label with dynamic colors."""
+        """Update the progress bar and label - stays blue while processing."""
         self.progress_bar['value'] = progress
         self.progress_label.config(text=f"Processing... {progress:.1f}% ({rows:,} rows)")
         
-        # Dynamic color changes based on progress
-        style = ttk.Style()
-        if progress < 25:
-            # Blue for early stage
-            style.configure("Colorful.Horizontal.TProgressbar",
-                          background='#2196F3',  # Blue
-                          lightcolor='#64B5F6',
-                          darkcolor='#1976D2')
-        elif progress < 50:
-            # Cyan for second quarter
-            style.configure("Colorful.Horizontal.TProgressbar",
-                          background='#00BCD4',  # Cyan
-                          lightcolor='#4DD0E1',
-                          darkcolor='#0097A7')
-        elif progress < 75:
-            # Orange for third quarter
-            style.configure("Colorful.Horizontal.TProgressbar",
-                          background='#FF9800',  # Orange
-                          lightcolor='#FFB74D',
-                          darkcolor='#F57C00')
-        else:
-            # Green for final stage
-            style.configure("Colorful.Horizontal.TProgressbar",
-                          background='#4CAF50',  # Green
-                          lightcolor='#81C784',
-                          darkcolor='#388E3C')
+        # Keep progress bar blue during processing
+        # Color will change to green/red only when validation completes
         
         self.root.update_idletasks()
     
