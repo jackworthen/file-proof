@@ -35,12 +35,13 @@ class ValidationReport:
         self.warnings = []
         self.passed = False
         
-    def add_error(self, row_num: int, error_type: str, description: str):
+    def add_error(self, row_num: int, error_type: str, description: str, row_content: str = ""):
         """Add an error to the report."""
         self.errors.append({
             'row': row_num,
             'type': error_type,
-            'description': description
+            'description': description,
+            'content': row_content[:500] if row_content else ""  # Store first 500 chars
         })
         
     def add_warning(self, row_num: int, warning_type: str, description: str):
@@ -122,6 +123,21 @@ class ValidationReport:
         report.append("=" * 80)
         
         return "\n".join(report)
+    
+    def export_errors_csv(self, output_path: str):
+        """Export errors to a CSV file for easy analysis."""
+        with open(output_path, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(['Row Number', 'Error Type', 'Description', 'Row Content Preview'])
+            for error in self.errors:
+                content_preview = error.get('content', '')[:200]  # First 200 chars
+                writer.writerow([
+                    error['row'], 
+                    error['type'], 
+                    error['description'], 
+                    content_preview
+                ])
+
 
 
 class DelimitedFileValidator:
@@ -300,7 +316,8 @@ class DelimitedFileValidator:
                             self.report.add_error(
                                 row_num,
                                 "COLUMN_COUNT_MISMATCH",
-                                f"Expected {expected_columns} columns, found {actual_columns}"
+                                f"Expected {expected_columns} columns, found {actual_columns}",
+                                line
                             )
                     else:
                         # Parse the line to check for unescaped delimiters in data
@@ -316,7 +333,8 @@ class DelimitedFileValidator:
                                 self.report.add_error(
                                     row_num,
                                     "UNCLOSED_QUOTES",
-                                    "Unclosed double quotes detected"
+                                    "Unclosed double quotes detected",
+                                    line
                                 )
                         elif quote_count_single % 2 != 0:
                             if len(self.report.warnings) < self.max_errors:
@@ -430,7 +448,7 @@ class DataValidatorApp:
     def __init__(self, root):
         self.root = root
         self.root.title("File Proof")
-        self.root.geometry("800x700")
+        self.root.geometry("960x700")  # Increased width by 20% (800 * 1.2 = 960)
         
         # Set style
         style = ttk.Style()
@@ -459,6 +477,7 @@ class DataValidatorApp:
         self.validation_running = False
         self.current_report = None
         self.progress_color_state = 0
+        self.all_errors = []  # For error navigator
         
         self.setup_ui()
         
@@ -504,15 +523,13 @@ class DataValidatorApp:
                                            style="Colorful.Horizontal.TProgressbar")
         self.progress_bar.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(5, 0))
         
-        # Results frame
-        results_frame = ttk.LabelFrame(main_frame, text="Validation Report", padding="10")
+        # Results frame - Error Navigator
+        results_frame = ttk.LabelFrame(main_frame, text="Error Navigator", padding="10")
         results_frame.grid(row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 10))
         results_frame.columnconfigure(0, weight=1)
         results_frame.rowconfigure(0, weight=1)
         
-        self.results_text = scrolledtext.ScrolledText(results_frame, wrap=tk.WORD, 
-                                                      height=20, font=('Courier', 9))
-        self.results_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.setup_error_navigator(results_frame)
         
         # Buttons frame
         buttons_frame = ttk.Frame(main_frame)
@@ -522,6 +539,96 @@ class DataValidatorApp:
                   command=self.save_report).grid(row=0, column=0, padx=5)
         ttk.Button(buttons_frame, text="Clear", 
                   command=self.clear_results).grid(row=0, column=1, padx=5)
+    
+    def setup_error_navigator(self, parent_frame):
+        """Setup the interactive error navigation panel."""
+        parent_frame.columnconfigure(0, weight=1)
+        parent_frame.rowconfigure(1, weight=1)
+        
+        # Filter and controls frame
+        filter_frame = ttk.Frame(parent_frame, padding="5")
+        filter_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        filter_frame.columnconfigure(2, weight=1)
+        
+        # Error type filter
+        ttk.Label(filter_frame, text="Filter by Type:").grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
+        
+        self.error_filter = tk.StringVar(value="All Errors")
+        self.filter_combo = ttk.Combobox(filter_frame, textvariable=self.error_filter, 
+                                         state='readonly', width=25)
+        self.filter_combo['values'] = ['All Errors']
+        self.filter_combo.grid(row=0, column=1, sticky=tk.W, padx=(0, 20))
+        self.filter_combo.bind('<<ComboboxSelected>>', lambda e: self.apply_error_filter())
+        
+        # Stats label
+        self.error_stats_label = ttk.Label(filter_frame, text="No errors", 
+                                          font=('Helvetica', 9, 'italic'))
+        self.error_stats_label.grid(row=0, column=2, sticky=tk.W, padx=(10, 0))
+        
+        # Search frame
+        search_frame = ttk.Frame(filter_frame)
+        search_frame.grid(row=0, column=3, sticky=tk.E, padx=(20, 0))
+        
+        ttk.Label(search_frame, text="Search Row:").grid(row=0, column=0, padx=(0, 5))
+        self.row_search = tk.StringVar()
+        self.row_search_entry = ttk.Entry(search_frame, textvariable=self.row_search, width=10)
+        self.row_search_entry.grid(row=0, column=1, padx=(0, 5))
+        ttk.Button(search_frame, text="Find", command=self.search_error_row).grid(row=0, column=2)
+        
+        # Error table frame
+        table_frame = ttk.Frame(parent_frame)
+        table_frame.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        table_frame.columnconfigure(0, weight=1)
+        table_frame.rowconfigure(0, weight=1)
+        
+        # Scrollbars
+        vsb = ttk.Scrollbar(table_frame, orient="vertical")
+        hsb = ttk.Scrollbar(table_frame, orient="horizontal")
+        
+        # Treeview for error table
+        self.error_table = ttk.Treeview(table_frame, 
+                                        columns=('row', 'type', 'description', 'preview'),
+                                        show='headings',
+                                        yscrollcommand=vsb.set,
+                                        xscrollcommand=hsb.set,
+                                        height=15)
+        
+        vsb.config(command=self.error_table.yview)
+        hsb.config(command=self.error_table.xview)
+        
+        # Configure columns
+        self.error_table.heading('row', text='Row #', command=lambda: self.sort_errors('row'))
+        self.error_table.heading('type', text='Error Type', command=lambda: self.sort_errors('type'))
+        self.error_table.heading('description', text='Description', command=lambda: self.sort_errors('description'))
+        self.error_table.heading('preview', text='Row Content Preview', command=lambda: self.sort_errors('preview'))
+        
+        self.error_table.column('row', width=80, anchor='center')
+        self.error_table.column('type', width=180)
+        self.error_table.column('description', width=250)
+        self.error_table.column('preview', width=300)
+        
+        # Grid layout
+        self.error_table.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        vsb.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        hsb.grid(row=1, column=0, sticky=(tk.W, tk.E))
+        
+        # Bind double-click to show detail
+        self.error_table.bind('<Double-1>', self.show_error_detail)
+        
+        # Action buttons frame
+        action_frame = ttk.Frame(parent_frame, padding="5")
+        action_frame.grid(row=2, column=0, sticky=tk.E, pady=(10, 0))
+        
+        ttk.Button(action_frame, text="📋 Copy Row Numbers", 
+                  command=self.copy_error_rows).grid(row=0, column=0, padx=5)
+        ttk.Button(action_frame, text="💾 Export Errors to CSV", 
+                  command=self.export_errors).grid(row=0, column=1, padx=5)
+        ttk.Button(action_frame, text="🔍 Show All Details", 
+                  command=self.show_all_error_details).grid(row=0, column=2, padx=5)
+        
+        # Initialize sort state
+        self.sort_column = 'row'
+        self.sort_reverse = False
         
     def browse_file(self):
         """Open file browser dialog."""
@@ -571,10 +678,10 @@ class DataValidatorApp:
         filetype = "auto"
         delimiter = None
         
-        # Set progress bar to blue for running state
+        # Reset progress bar to starting color
         style = ttk.Style()
         style.configure("Colorful.Horizontal.TProgressbar",
-                      background='#2196F3',  # Blue
+                      background='#2196F3',
                       lightcolor='#64B5F6',
                       darkcolor='#1976D2')
         
@@ -621,11 +728,7 @@ class DataValidatorApp:
         self.root.update_idletasks()
     
     def display_results(self, report: ValidationReport):
-        """Display validation results in the text widget."""
-        self.results_text.delete('1.0', tk.END)
-        report_text = report.generate_report()
-        self.results_text.insert('1.0', report_text)
-        
+        """Display validation results in the error navigator."""
         # Color code the result with enhanced styling
         if report.passed:
             self.progress_label.config(
@@ -654,8 +757,291 @@ class DataValidatorApp:
                           darkcolor='#D32F2F')
             self.progress_bar['value'] = 100
         
-        # Auto-scroll to top
-        self.results_text.see('1.0')
+        # Populate error navigator
+        self.populate_error_navigator(report)
+
+    
+    def populate_error_navigator(self, report: ValidationReport):
+        """Populate the error navigator table with errors from the report."""
+        # Clear existing items
+        for item in self.error_table.get_children():
+            self.error_table.delete(item)
+        
+        # Store errors for filtering/sorting
+        self.all_errors = report.errors
+        
+        # Get unique error types for filter
+        error_types = ['All Errors']
+        if self.all_errors:
+            unique_types = sorted(set(error['type'] for error in self.all_errors))
+            error_types.extend(unique_types)
+        
+        self.filter_combo['values'] = error_types
+        self.error_filter.set('All Errors')
+        
+        # Populate table
+        for error in self.all_errors:
+            preview = error.get('content', '')[:100]  # First 100 chars
+            if len(error.get('content', '')) > 100:
+                preview += '...'
+            
+            self.error_table.insert('', 'end', values=(
+                error['row'],
+                error['type'],
+                error['description'],
+                preview
+            ))
+        
+        # Update stats
+        self.update_error_stats()
+    
+    def update_error_stats(self):
+        """Update the error statistics label."""
+        visible_count = len(self.error_table.get_children())
+        total_count = len(self.all_errors) if hasattr(self, 'all_errors') else 0
+        
+        if visible_count == 0:
+            self.error_stats_label.config(text="No errors found")
+        elif visible_count == total_count:
+            self.error_stats_label.config(text=f"Showing all {total_count} error(s)")
+        else:
+            self.error_stats_label.config(text=f"Showing {visible_count} of {total_count} error(s)")
+    
+    def apply_error_filter(self):
+        """Filter errors based on selected type."""
+        if not hasattr(self, 'all_errors'):
+            return
+        
+        # Clear table
+        for item in self.error_table.get_children():
+            self.error_table.delete(item)
+        
+        filter_type = self.error_filter.get()
+        
+        # Repopulate with filtered errors
+        for error in self.all_errors:
+            if filter_type == 'All Errors' or error['type'] == filter_type:
+                preview = error.get('content', '')[:100]
+                if len(error.get('content', '')) > 100:
+                    preview += '...'
+                
+                self.error_table.insert('', 'end', values=(
+                    error['row'],
+                    error['type'],
+                    error['description'],
+                    preview
+                ))
+        
+        self.update_error_stats()
+    
+    def search_error_row(self):
+        """Search for a specific row number in the error table."""
+        search_row = self.row_search.get().strip()
+        
+        if not search_row:
+            messagebox.showwarning("Search", "Please enter a row number")
+            return
+        
+        try:
+            row_num = int(search_row)
+        except ValueError:
+            messagebox.showerror("Search", "Please enter a valid row number")
+            return
+        
+        # Search in table
+        found = False
+        for item in self.error_table.get_children():
+            values = self.error_table.item(item)['values']
+            if values[0] == row_num:
+                # Select and show the item
+                self.error_table.selection_set(item)
+                self.error_table.see(item)
+                self.error_table.focus(item)
+                found = True
+                break
+        
+        if not found:
+            messagebox.showinfo("Search", f"Row {row_num} not found in error list")
+    
+    def sort_errors(self, column):
+        """Sort error table by column."""
+        # Toggle sort direction if same column
+        if self.sort_column == column:
+            self.sort_reverse = not self.sort_reverse
+        else:
+            self.sort_column = column
+            self.sort_reverse = False
+        
+        # Get all items
+        items = [(self.error_table.item(item)['values'], item) 
+                 for item in self.error_table.get_children()]
+        
+        # Determine column index
+        col_index = {'row': 0, 'type': 1, 'description': 2, 'preview': 3}[column]
+        
+        # Sort items
+        if column == 'row':
+            items.sort(key=lambda x: int(x[0][col_index]), reverse=self.sort_reverse)
+        else:
+            items.sort(key=lambda x: str(x[0][col_index]).lower(), reverse=self.sort_reverse)
+        
+        # Reinsert items in sorted order
+        for index, (values, item) in enumerate(items):
+            self.error_table.move(item, '', index)
+    
+    def show_error_detail(self, event):
+        """Show detailed information for selected error (double-click)."""
+        selection = self.error_table.selection()
+        if not selection:
+            return
+        
+        item = selection[0]
+        values = self.error_table.item(item)['values']
+        
+        # Find the full error data
+        row_num = values[0]
+        error_data = None
+        for error in self.all_errors:
+            if error['row'] == row_num:
+                error_data = error
+                break
+        
+        if not error_data:
+            return
+        
+        # Create detail window
+        detail_window = tk.Toplevel(self.root)
+        detail_window.title(f"Error Detail - Row {row_num}")
+        detail_window.geometry("700x400")
+        
+        # Detail frame
+        detail_frame = ttk.Frame(detail_window, padding="10")
+        detail_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        detail_window.columnconfigure(0, weight=1)
+        detail_window.rowconfigure(0, weight=1)
+        detail_frame.columnconfigure(1, weight=1)
+        detail_frame.rowconfigure(4, weight=1)
+        
+        # Error information
+        ttk.Label(detail_frame, text="Row Number:", font=('Helvetica', 9, 'bold')).grid(
+            row=0, column=0, sticky=tk.W, pady=5)
+        ttk.Label(detail_frame, text=str(error_data['row'])).grid(
+            row=0, column=1, sticky=tk.W, pady=5)
+        
+        ttk.Label(detail_frame, text="Error Type:", font=('Helvetica', 9, 'bold')).grid(
+            row=1, column=0, sticky=tk.W, pady=5)
+        ttk.Label(detail_frame, text=error_data['type']).grid(
+            row=1, column=1, sticky=tk.W, pady=5)
+        
+        ttk.Label(detail_frame, text="Description:", font=('Helvetica', 9, 'bold')).grid(
+            row=2, column=0, sticky=tk.W, pady=5)
+        ttk.Label(detail_frame, text=error_data['description'], wraplength=500).grid(
+            row=2, column=1, sticky=tk.W, pady=5)
+        
+        ttk.Label(detail_frame, text="Row Content:", font=('Helvetica', 9, 'bold')).grid(
+            row=3, column=0, sticky=(tk.W, tk.N), pady=5)
+        
+        # Row content text widget
+        content_text = scrolledtext.ScrolledText(detail_frame, wrap=tk.WORD, 
+                                                 height=10, font=('Courier', 9))
+        content_text.grid(row=4, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
+        content_text.insert('1.0', error_data.get('content', 'No content available'))
+        content_text.config(state='disabled')
+        
+        # Close button
+        ttk.Button(detail_frame, text="Close", command=detail_window.destroy).grid(
+            row=5, column=0, columnspan=2, pady=(10, 0))
+    
+    def show_all_error_details(self):
+        """Show all error details in a new window."""
+        if not hasattr(self, 'all_errors') or not self.all_errors:
+            messagebox.showinfo("Error Details", "No errors to display")
+            return
+        
+        # Create detail window
+        detail_window = tk.Toplevel(self.root)
+        detail_window.title("All Error Details")
+        detail_window.geometry("900x600")
+        
+        # Text widget with scrollbar
+        frame = ttk.Frame(detail_window, padding="10")
+        frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        detail_window.columnconfigure(0, weight=1)
+        detail_window.rowconfigure(0, weight=1)
+        frame.columnconfigure(0, weight=1)
+        frame.rowconfigure(0, weight=1)
+        
+        text_widget = scrolledtext.ScrolledText(frame, wrap=tk.WORD, font=('Courier', 9))
+        text_widget.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        
+        # Build detailed text
+        visible_errors = []
+        for item in self.error_table.get_children():
+            row_num = self.error_table.item(item)['values'][0]
+            for error in self.all_errors:
+                if error['row'] == row_num:
+                    visible_errors.append(error)
+                    break
+        
+        for i, error in enumerate(visible_errors, 1):
+            text_widget.insert('end', f"{'=' * 80}\n")
+            text_widget.insert('end', f"ERROR #{i}\n")
+            text_widget.insert('end', f"{'=' * 80}\n")
+            text_widget.insert('end', f"Row Number: {error['row']}\n")
+            text_widget.insert('end', f"Error Type: {error['type']}\n")
+            text_widget.insert('end', f"Description: {error['description']}\n")
+            text_widget.insert('end', f"\nRow Content:\n")
+            text_widget.insert('end', f"{error.get('content', 'No content available')}\n\n")
+        
+        text_widget.config(state='disabled')
+        
+        # Close button
+        ttk.Button(frame, text="Close", command=detail_window.destroy).grid(
+            row=1, column=0, pady=(10, 0))
+    
+    def copy_error_rows(self):
+        """Copy row numbers of visible errors to clipboard."""
+        if not self.error_table.get_children():
+            messagebox.showinfo("Copy Row Numbers", "No errors to copy")
+            return
+        
+        # Get all visible row numbers
+        row_numbers = []
+        for item in self.error_table.get_children():
+            values = self.error_table.item(item)['values']
+            row_numbers.append(str(values[0]))
+        
+        # Copy to clipboard
+        row_list = ', '.join(row_numbers)
+        self.root.clipboard_clear()
+        self.root.clipboard_append(row_list)
+        
+        messagebox.showinfo("Copy Row Numbers", 
+                          f"Copied {len(row_numbers)} row number(s) to clipboard:\n{row_list[:200]}...")
+    
+    def export_errors(self):
+        """Export visible errors to CSV file."""
+        if not hasattr(self, 'current_report') or not self.current_report:
+            messagebox.showwarning("Export Errors", "No errors to export")
+            return
+        
+        if not self.current_report.errors:
+            messagebox.showinfo("Export Errors", "No errors found to export")
+            return
+        
+        filename = filedialog.asksaveasfilename(
+            title="Export Errors to CSV",
+            defaultextension=".csv",
+            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+            initialfile=f"errors_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        )
+        
+        if filename:
+            try:
+                self.current_report.export_errors_csv(filename)
+                messagebox.showinfo("Export Errors", f"Errors exported to {filename}")
+            except Exception as e:
+                messagebox.showerror("Export Error", f"Failed to export errors: {str(e)}")
     
     def save_report(self):
         """Save the validation report to a file."""
@@ -680,9 +1066,15 @@ class DataValidatorApp:
     
     def clear_results(self):
         """Clear the results display."""
-        self.results_text.delete('1.0', tk.END)
         self.progress_label.config(text="", foreground='black', font=('Helvetica', 9))
         self.progress_bar['value'] = 0
+        
+        # Clear error navigator
+        for item in self.error_table.get_children():
+            self.error_table.delete(item)
+        self.all_errors = []
+        self.error_filter.set('All Errors')
+        self.error_stats_label.config(text="No errors")
         
         # Reset progress bar to default blue color
         style = ttk.Style()
