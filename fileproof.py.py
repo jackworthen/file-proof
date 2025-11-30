@@ -1,9 +1,4 @@
-#!/usr/bin/env python3
-"""
-Data File Validator
-A robust application for validating data files with various formats and delimiters.
-Supports large files up to 1GB with detailed error reporting.
-"""
+
 
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext
