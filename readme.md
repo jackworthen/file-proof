@@ -70,7 +70,7 @@ git clone https://github.com/yourusername/fileproof.git
 cd fileproof
 
 # Run the application (no dependencies required!)
-python fileproof_py.py
+python fileproof.py
 ```
 
 > 💡 **Note:** File Proof uses only Python standard library modules — no pip install needed!
@@ -142,7 +142,7 @@ python fileproof_py.py
 ### Architecture
 
 ```
-fileproof_py.py
+fileproof.py
 ├── ValidationReport      # Stores results & generates reports
 ├── DelimitedFileValidator  # CSV/TSV/delimited file validation
 ├── JSONValidator         # JSON file validation
