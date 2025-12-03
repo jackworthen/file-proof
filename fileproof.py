@@ -1,5 +1,3 @@
-
-
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext
 import json
@@ -10,7 +8,6 @@ from datetime import datetime
 from collections import defaultdict
 from typing import Dict, List, Tuple, Optional
 import re
-
 
 class ValidationReport:
     """Stores validation results and generates detailed reports."""
@@ -132,8 +129,6 @@ class ValidationReport:
                     error['description'], 
                     content_preview
                 ])
-
-
 
 class DelimitedFileValidator:
     """Validates delimited files (CSV, TSV, pipe-delimited, etc.)"""
@@ -351,7 +346,6 @@ class DelimitedFileValidator:
         
         return self.report
 
-
 class JSONValidator:
     """Validates JSON files."""
     
@@ -435,7 +429,6 @@ class JSONValidator:
         self.report.passed = self.report.invalid_rows == 0 and len(self.report.errors) == 0
         
         return self.report
-
 
 class DataValidatorApp:
     """Main application class with tkinter UI."""
@@ -754,7 +747,6 @@ class DataValidatorApp:
         
         # Populate error navigator
         self.populate_error_navigator(report)
-
     
     def populate_error_navigator(self, report: ValidationReport):
         """Populate the error navigator table with errors from the report."""
@@ -1083,7 +1075,6 @@ def main():
     root = tk.Tk()
     app = DataValidatorApp(root)
     root.mainloop()
-
 
 if __name__ == "__main__":
     main()
