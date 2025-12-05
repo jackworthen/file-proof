@@ -8,6 +8,7 @@ from datetime import datetime
 from collections import defaultdict
 from typing import Dict, List, Tuple, Optional
 import re
+import hashlib
 
 class ValidationReport:
     """Stores validation results and generates detailed reports."""
@@ -136,11 +137,12 @@ class DelimitedFileValidator:
     COMMON_DELIMITERS = [',', '|', '\t', '*', ';', ':']
     
     def __init__(self, filepath: str, delimiter: Optional[str] = None, 
-                 max_errors: int = 1000, chunk_size: int = 8192):
+                 max_errors: int = 1000, chunk_size: int = 8192, check_duplicates: bool = False):
         self.filepath = filepath
         self.delimiter = delimiter
         self.max_errors = max_errors
         self.chunk_size = chunk_size
+        self.check_duplicates = check_duplicates
         self.report = ValidationReport(os.path.basename(filepath))
         
     def detect_delimiter(self, sample_lines: List[str]) -> str:
@@ -281,6 +283,7 @@ class DelimitedFileValidator:
                 
                 row_num = 0
                 bytes_processed = 0
+                row_hashes = {}  # For duplicate detection: hash -> list of (row_num, line)
                 
                 for line in f:
                     row_num += 1
@@ -295,6 +298,13 @@ class DelimitedFileValidator:
                         continue
                     
                     self.report.total_rows += 1
+                    
+                    # Collect row hash for duplicate detection
+                    if self.check_duplicates:
+                        row_hash = hashlib.md5(line.encode('utf-8')).hexdigest()
+                        if row_hash not in row_hashes:
+                            row_hashes[row_hash] = []
+                        row_hashes[row_hash].append((row_num, line))
                     
                     # Count delimiters
                     delimiter_count = self._count_delimiter_outside_quotes(line, self.delimiter)
@@ -335,6 +345,30 @@ class DelimitedFileValidator:
                                 )
                         else:
                             self.report.valid_rows += 1
+                
+
+                # Check for duplicates
+                if self.check_duplicates:
+                    for row_hash, occurrences in row_hashes.items():
+                        if len(occurrences) > 1:
+                            # All rows with this hash are duplicates
+                            duplicate_rows = [str(rnum) for rnum, _ in occurrences]
+                            for rnum, line_content in occurrences:
+                                other_rows = ', '.join([r for r in duplicate_rows if r != str(rnum)])
+                                self.report.add_error(
+                                    rnum,
+                                    "DUPLICATE_ROW",
+                                    f"Exact duplicate of row(s): {other_rows}",
+                                    line_content
+                                )
+                                self.report.invalid_rows += 1
+                                self.report.valid_rows = max(0, self.report.valid_rows - 1)
+                                
+                                if len(self.report.errors) >= self.max_errors:
+                                    break
+                        
+                        if len(self.report.errors) >= self.max_errors:
+                            break
                 
                 self.report.file_type = f"Delimited (delimiter: {repr(self.delimiter).strip(chr(39))})"
                 
@@ -466,6 +500,7 @@ class DataValidatorApp:
         self.current_report = None
         self.progress_color_state = 0
         self.all_errors = []  # For error navigator
+        self.check_duplicates = tk.BooleanVar(value=False)
         
         self.setup_ui()
         
@@ -496,6 +531,11 @@ class DataValidatorApp:
                                        command=self.start_validation,
                                        style='Accent.TButton')
         self.validate_btn.grid(row=0, column=3, sticky=tk.E)
+        
+        # Duplicate detection checkbox
+        ttk.Checkbutton(file_frame, text="Check for duplicate rows", 
+                       variable=self.check_duplicates).grid(row=1, column=0, columnspan=4, 
+                                                            sticky=tk.W, pady=(5, 0))
         
         # Progress frame
         progress_frame = ttk.Frame(main_frame)
@@ -686,7 +726,7 @@ class DataValidatorApp:
             if filetype == 'json':
                 validator = JSONValidator(filepath)
             else:
-                validator = DelimitedFileValidator(filepath, delimiter=delimiter)
+                validator = DelimitedFileValidator(filepath, delimiter=delimiter, check_duplicates=self.check_duplicates.get())
             
             # Run validation with progress updates
             def progress_callback(progress, rows):
