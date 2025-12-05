@@ -24,6 +24,7 @@
 - **JSON structure analysis** — validates schema consistency
 - **Quote handling** — properly parses escaped and nested quotes
 - **Column count verification** — catches misaligned rows instantly
+- **Duplicate row detection** — check for duplicate rows in the data
 
 </td>
 <td width="50%">
