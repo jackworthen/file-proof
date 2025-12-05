@@ -470,7 +470,7 @@ class DataValidatorApp:
     def __init__(self, root):
         self.root = root
         self.root.title("File Proof")
-        self.root.geometry("960x700")  # Increased width by 20% (800 * 1.2 = 960)
+        self.root.geometry("960x705")  # Increased width by 20% (800 * 1.2 = 960)
         
         # Set style
         style = ttk.Style()
