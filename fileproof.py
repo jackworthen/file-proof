@@ -524,7 +524,7 @@ class DataValidatorApp:
         self.progress_color_state = 0
         self.all_errors = []  # For error navigator
         self.all_duplicates = []  # For duplicate tracking
-        self.check_duplicates = tk.BooleanVar(value=False)
+        self.check_duplicates = tk.BooleanVar(value=True)
         
         self.setup_ui()
         
