@@ -882,7 +882,7 @@ class DataValidatorApp:
         if total_errors == 0:
             self.error_stats_label.config(text="No errors found")
         else:
-            self.error_stats_label.config(text=f"Showing {total_errors} error(s)")
+            self.error_stats_label.config(text=f"{total_errors} error(s) found")
     
     
     
