@@ -1285,7 +1285,21 @@ class DataValidatorApp:
                     description_parts.append("errors")
                 
                 if self.remove_duplicates_var.get():
-                    exclude_rows.update(duplicate_rows)
+                    # Group duplicates by their content to keep only the first occurrence
+                    duplicate_groups = defaultdict(list)
+                    for dup in self.current_report.duplicates:
+                        # Use content as key to group duplicates
+                        content_key = dup.get('content', '')
+                        duplicate_groups[content_key].append(dup['row'])
+                    
+                    # For each group, exclude all but the first occurrence
+                    for content_key, row_numbers in duplicate_groups.items():
+                        if len(row_numbers) > 0:
+                            # Sort to ensure we keep the first occurrence
+                            sorted_rows = sorted(row_numbers)
+                            # Add all except the first to exclude_rows
+                            exclude_rows.update(sorted_rows[1:])
+                    
                     description_parts.append("duplicates")
                 
                 # Create title and filename based on what's being excluded
