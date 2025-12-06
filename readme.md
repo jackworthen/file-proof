@@ -106,22 +106,6 @@ That's it! No external dependencies required. 🎉
 
 ---
 
-## 🖼️ Screenshots
-
-### Main Interface
-Clean, intuitive interface with all the tools you need at your fingertips.
-
-### Validation in Progress
-Real-time progress tracking with row counts and error detection.
-
-### Error Navigator
-Interactive error browser with filtering, sorting, and detailed views.
-
-### Fix & Save Dialog
-Smart save options that combine cleaning operations intelligently.
-
----
-
 ## 🛠️ Advanced Features
 
 ### Error Detection Types
@@ -166,14 +150,6 @@ Contributions are welcome! Feel free to:
 ## 📝 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
-
----
-
-## 🌟 Acknowledgments
-
-Built with ❤️ using Python and Tkinter.
-
-Special thanks to everyone who validates data files and knows the pain of inconsistent formats!
 
 ---
 
