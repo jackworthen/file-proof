@@ -591,6 +591,8 @@ class DataValidatorApp:
                   command=self.save_report).grid(row=0, column=0, padx=5)
         ttk.Button(buttons_frame, text="Clear", 
                   command=self.clear_results).grid(row=0, column=1, padx=5)
+        ttk.Button(buttons_frame, text="Fix & Save", 
+                  command=self.show_save_dialog).grid(row=0, column=2, padx=5)
     
     def setup_error_navigator(self, parent_frame):
         """Setup the interactive error navigation panel."""
@@ -678,10 +680,8 @@ class DataValidatorApp:
         
         ttk.Button(action_frame, text="📋 Copy Row Numbers", 
                   command=self.copy_error_rows).grid(row=0, column=0, padx=5)
-        ttk.Button(action_frame, text="💾 Export Errors to CSV", 
-                  command=self.export_errors).grid(row=0, column=1, padx=5)
         ttk.Button(action_frame, text="🔍 Show All Details", 
-                  command=self.show_all_error_details).grid(row=0, column=2, padx=5)
+                  command=self.show_all_error_details).grid(row=0, column=1, padx=5)
         
         # Initialize sort state
         self.sort_column = 'row'
@@ -730,6 +730,9 @@ class DataValidatorApp:
     def run_validation(self):
         """Run the validation process."""
         filepath = self.filepath.get()
+        
+        # Store the filepath for save operations
+        self.last_validated_file = filepath
         
         # Always auto-detect file type and delimiter
         filetype = "auto"
@@ -1188,6 +1191,159 @@ class DataValidatorApp:
                       background='#2196F3',
                       lightcolor='#64B5F6',
                       darkcolor='#1976D2')
+    
+    def show_save_dialog(self):
+        """Show dialog for saving options."""
+        if not hasattr(self, 'current_report') or not self.current_report:
+            messagebox.showwarning("Save", "No validation results to save. Please validate a file first.")
+            return
+        
+        if not hasattr(self, 'last_validated_file'):
+            messagebox.showwarning("Save", "Original file path not available.")
+            return
+        
+        # Create dialog window
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Save Options")
+        dialog.geometry("365x250")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        # Center the dialog
+        dialog.update_idletasks()
+        x = (dialog.winfo_screenwidth() // 2) - (dialog.winfo_width() // 2)
+        y = (dialog.winfo_screenheight() // 2) - (dialog.winfo_height() // 2)
+        dialog.geometry(f"+{x}+{y}")
+        
+        # Main frame
+        main_frame = ttk.Frame(dialog, padding="20")
+        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        dialog.columnconfigure(0, weight=1)
+        dialog.rowconfigure(0, weight=1)
+        
+        # Title
+        ttk.Label(main_frame, text="Select save options:", 
+                 font=('Helvetica', 10, 'bold')).grid(row=0, column=0, sticky=tk.W, pady=(0, 15))
+        
+        # Checkboxes
+        self.save_without_errors_var = tk.BooleanVar(value=False)
+        self.remove_duplicates_var = tk.BooleanVar(value=False)
+        self.export_errors_var = tk.BooleanVar(value=False)
+        
+        ttk.Checkbutton(main_frame, text="Export file without error records",
+                       variable=self.save_without_errors_var).grid(row=1, column=0, sticky=tk.W, pady=5)
+        
+        ttk.Checkbutton(main_frame, text="Remove duplicate records",
+                       variable=self.remove_duplicates_var).grid(row=2, column=0, sticky=tk.W, pady=5)
+        
+        ttk.Checkbutton(main_frame, text="Export error records",
+                       variable=self.export_errors_var).grid(row=3, column=0, sticky=tk.W, pady=5)
+        
+        # Info label
+        info_text = "Note: Options 1 & 2 will save to the same file if both are selected."
+        ttk.Label(main_frame, text=info_text, foreground='gray', 
+                 font=('Helvetica', 8)).grid(row=4, column=0, sticky=tk.W, pady=(15, 0))
+        
+        # Button frame
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=5, column=0, sticky=tk.E, pady=(20, 0))
+        
+        def on_save():
+            if not self.save_without_errors_var.get() and not self.remove_duplicates_var.get() and not self.export_errors_var.get():
+                messagebox.showwarning("Save", "Please select at least one option.")
+                return
+            dialog.destroy()
+            self.perform_save_operation()
+        
+        ttk.Button(button_frame, text="Save", command=on_save).grid(row=0, column=0, padx=5)
+        ttk.Button(button_frame, text="Cancel", command=dialog.destroy).grid(row=0, column=1, padx=5)
+    
+    def perform_save_operation(self):
+        """Perform the selected save operations."""
+        try:
+            # Get error and duplicate row numbers
+            error_rows = set(error['row'] for error in self.current_report.errors)
+            duplicate_rows = set(dup['row'] for dup in self.current_report.duplicates)
+            
+            # Read the original file
+            with open(self.last_validated_file, 'r', encoding='utf-8', errors='replace') as f:
+                lines = f.readlines()
+            
+            # Get delimiter from the report
+            delimiter = self.current_report.delimiter if hasattr(self.current_report, 'delimiter') and self.current_report.delimiter else ','
+            
+            saved_files = []
+            
+            # Option 1 & 2 Combined: Export file without errors and/or duplicates
+            if self.save_without_errors_var.get() or self.remove_duplicates_var.get():
+                # Determine what to exclude and set appropriate title/filename
+                exclude_rows = set()
+                description_parts = []
+                
+                if self.save_without_errors_var.get():
+                    exclude_rows.update(error_rows)
+                    description_parts.append("errors")
+                
+                if self.remove_duplicates_var.get():
+                    exclude_rows.update(duplicate_rows)
+                    description_parts.append("duplicates")
+                
+                # Create title and filename based on what's being excluded
+                if len(description_parts) == 2:
+                    title = "Save File Without Errors and Duplicates"
+                    suffix = "_clean"
+                    file_description = "File without errors and duplicates"
+                elif "errors" in description_parts:
+                    title = "Save File Without Errors"
+                    suffix = "_no_errors"
+                    file_description = "File without errors"
+                else:
+                    title = "Save File Without Duplicates"
+                    suffix = "_no_duplicates"
+                    file_description = "File without duplicates"
+                
+                filename = filedialog.asksaveasfilename(
+                    title=title,
+                    defaultextension=".csv",
+                    filetypes=[("CSV files", "*.csv"), ("Text files", "*.txt"), ("All files", "*.*")],
+                    initialfile=f"{os.path.splitext(os.path.basename(self.last_validated_file))[0]}{suffix}.csv"
+                )
+                
+                if filename:
+                    with open(filename, 'w', encoding='utf-8', newline='') as f:
+                        for i, line in enumerate(lines, 1):
+                            if i not in exclude_rows:
+                                f.write(line)
+                    saved_files.append(f"{file_description}: {filename}")
+            
+            # Option 3: Export error records
+            if self.export_errors_var.get():
+                filename = filedialog.asksaveasfilename(
+                    title="Save Error Records Only",
+                    defaultextension=".csv",
+                    filetypes=[("CSV files", "*.csv"), ("Text files", "*.txt"), ("All files", "*.*")],
+                    initialfile=f"{os.path.splitext(os.path.basename(self.last_validated_file))[0]}_errors_only.csv"
+                )
+                
+                if filename:
+                    with open(filename, 'w', encoding='utf-8', newline='') as f:
+                        # Write header if it exists (row 1)
+                        if len(lines) > 0 and 1 not in error_rows:
+                            f.write(lines[0])
+                        
+                        # Write only error rows
+                        for i, line in enumerate(lines, 1):
+                            if i in error_rows:
+                                f.write(line)
+                    saved_files.append(f"Error records only: {filename}")
+            
+            # Show success message
+            if saved_files:
+                message = "Successfully saved:\n\n" + "\n".join(saved_files)
+                messagebox.showinfo("Save Complete", message)
+        
+        except Exception as e:
+            messagebox.showerror("Save Error", f"Failed to save files: {str(e)}")
 
 def main():
     """Main entry point."""
