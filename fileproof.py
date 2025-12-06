@@ -885,7 +885,7 @@ class DataValidatorApp:
         if total_errors == 0:
             self.error_stats_label.config(text="No errors found")
         else:
-            self.error_stats_label.config(text=f"{total_errors} error(s) found")
+            self.error_stats_label.config(text=f"Errors: {total_errors}")
     
     
     
@@ -896,7 +896,7 @@ class DataValidatorApp:
         if total_duplicates == 0:
             self.duplicate_stats_label.config(text="No duplicates")
         else:
-            self.duplicate_stats_label.config(text=f"{total_duplicates} duplicate(s) found")
+            self.duplicate_stats_label.config(text=f"Duplicates: {total_duplicates}")
     
     def apply_error_filter(self):
         """Filter errors based on selected type."""
