@@ -1,224 +1,186 @@
+# 🔍 FileProof - Data File Validator
 
-<h1 align="center">
-  🔍 File Proof
-</h1>
+**Your guardian against messy data files! 🛡️**
 
-<p align="center">
-  <b>A powerful, user-friendly data file validator with a modern GUI</b>
-</p>
+Validate, clean, and fix delimited files (CSV, TSV, pipe-delimited, and more) with an intuitive GUI that makes data validation actually enjoyable.
 
-<p align="center">
-  <i>Validate CSV, TSV, JSON, and delimited files in seconds — catch errors before they catch you!</i>
-</p>
+[Features](#-features) • [Installation](#-installation) • [Usage](#-usage) • [Screenshots](#-screenshots)
+
+</div>
 
 ---
 
 ## ✨ Features
 
-<table>
-<tr>
-<td width="50%">
-
 ### 🎯 Smart Validation
-- **Auto-detect delimiters** — CSV, TSV, pipe, semicolon, and more
-- **JSON structure analysis** — validates schema consistency
-- **Quote handling** — properly parses escaped and nested quotes
-- **Column count verification** — catches misaligned rows instantly
-- **Duplicate row detection** — check for duplicate rows in the data
+- **🔎 Auto-Detection**: Automatically detects file delimiters (comma, pipe, tab, semicolon, colon, asterisk)
+- **📊 Column Consistency**: Ensures every row has the correct number of columns
+- **🔢 Row Counting**: Tracks total, valid, and invalid rows with precision
+- **⚠️ Detailed Error Reporting**: Get comprehensive reports with error types, locations, and descriptions
 
-</td>
-<td width="50%">
+### 🧹 Data Cleaning
+- **🚫 Duplicate Detection**: Identifies duplicate rows (enabled by default!)
+- **✅ Export Clean Files**: Remove error records, duplicates, or both in one click
+- **🔧 Fix & Save**: Smart save options to export cleaned data
+- **📝 Error Extraction**: Export only the problematic records for review
 
-### 🧭 Interactive Error Navigator
-- **Sortable error table** — click headers to sort
-- **Filter by error type** — focus on what matters
-- **Search by row number** — jump to specific issues
-- **Double-click for details** — see full row content
+### 🎨 User Interface
+- **🖥️ Clean GUI**: Built with Tkinter for a smooth, native experience
+- **📈 Real-time Progress**: Visual progress bar with color-coded results (green = pass, red = fail)
+- **🔍 Interactive Error Navigator**: Browse, filter, and explore errors with ease
+- **📋 Copy & Export**: One-click copy of error row numbers or export to CSV
 
-</td>
-</tr>
-<tr>
-<td width="50%">
-
-### 📊 Detailed Reports
-- **Comprehensive summaries** — rows processed, valid, invalid
-- **Grouped error analysis** — errors organized by type
-- **Export to CSV** — import errors into Excel or other tools
-- **Save text reports** — document validation results
-
-</td>
-<td width="50%">
-
-### ⚡ Performance
-- **Multi-threaded processing** — UI stays responsive
-- **Large file support** — handles files of any size
-- **Progress tracking** — visual progress bar with row count
-- **Chunked reading** — memory-efficient file processing
-
-</td>
-</tr>
-</table>
+### 📊 Reporting
+- **📄 Comprehensive Reports**: Detailed validation summaries with statistics
+- **💾 Multiple Export Formats**: Save reports as TXT or errors as CSV
+- **🎯 Error Grouping**: Errors grouped by type for easier analysis
+- **⏱️ Performance Metrics**: See validation time and file size statistics
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Installation
 
-### Installation
+### Prerequisites
+- Python 3.7 or higher
+- Tkinter (usually comes pre-installed with Python)
 
+### Quick Start
+
+1. **Clone the repository**
 ```bash
-# Clone the repository
 git clone https://github.com/yourusername/fileproof.git
 cd fileproof
+```
 
-# Run the application (no dependencies required!)
+2. **Run the application**
+```bash
 python fileproof.py
 ```
 
-> 💡 **Note:** File Proof uses only Python standard library modules — no pip install needed!
-
-### Usage
-
-1. **Launch** the application
-2. **Browse** to select your data file
-3. **Click** the `🔍 Validate File` button
-4. **Review** errors in the interactive navigator
-5. **Export** results or save the report
+That's it! No external dependencies required. 🎉
 
 ---
 
-## 🎨 Screenshots
+## 📖 Usage
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│  📁 File Proof                                              [─][□][×]│
-├─────────────────────────────────────────────────────────────────────┤
-│  ┌─ Select File ──────────────────────────────────────────────────┐ │
-│  │ File: [data.csv                          ] [Browse] [🔍Validate]│ │
-│  └────────────────────────────────────────────────────────────────┘ │
-│                                                                     │
-│  ✓ PASSED - 10,000 rows validated in 0.45 seconds                  │
-│  ████████████████████████████████████████████████████ 100%          │
-│                                                                     │
-│  ┌─ Error Navigator ──────────────────────────────────────────────┐ │
-│  │ Filter: [All Errors ▼]  │  Showing 0 of 0 errors  │ Search: [ ]│ │
-│  │─────────────────────────────────────────────────────────────────│ │
-│  │  Row #  │  Error Type  │  Description  │  Preview              │ │
-│  │─────────────────────────────────────────────────────────────────│ │
-│  │                    ✨ No errors found!                          │ │
-│  └────────────────────────────────────────────────────────────────┘ │
-│                                      [Save Report] [Clear]          │
-└─────────────────────────────────────────────────────────────────────┘
-```
+### Basic Workflow
+
+1. **🎯 Select Your File**
+   - Click "Browse" to choose your delimited file
+   - Supports CSV, TSV, pipe-delimited, and custom delimiters
+
+2. **🔍 Validate**
+   - Click "🔍 Validate File" to start the validation process
+   - Watch the progress bar as your file is analyzed
+   - The "Check for duplicate rows" option is enabled by default
+
+3. **📊 Review Results**
+   - See validation results instantly with color-coded status
+   - Browse errors in the interactive error navigator
+   - Filter errors by type (Column Count, Quotes, Empty Rows, etc.)
+   - Double-click any error to see full details
+
+4. **🔧 Fix & Save**
+   - Click "Fix & Save" to open the save options dialog
+   - Choose from three powerful options:
+     - ✅ **Export file without error records** - Get a clean file with errors removed
+     - 🔄 **Remove duplicate records** - Eliminate duplicates (keeps one instance)
+     - ⚠️ **Export error records** - Save only the problematic rows for analysis
+   - Options 1 & 2 combine into a single clean file if both are selected!
+
+5. **💾 Export Reports**
+   - Click "Save Report" to export the full validation report
+   - Use "📋 Copy Row Numbers" to copy error row numbers to clipboard
+   - View detailed error information with "🔍 Show All Details"
+
+### Supported File Types
+
+| Format | Delimiter | Auto-Detected |
+|--------|-----------|---------------|
+| CSV | `,` | ✅ |
+| TSV | `\t` | ✅ |
+| Pipe | `\|` | ✅ |
+| Semicolon | `;` | ✅ |
+| Colon | `:` | ✅ |
+| Asterisk | `*` | ✅ |
 
 ---
 
-## 📋 Supported File Types
+## 🖼️ Screenshots
 
-| Format | Extensions | Auto-Detect |
-|--------|------------|-------------|
-| 🗃️ **CSV** | `.csv` | ✅ Delimiter auto-detected |
-| 📊 **TSV** | `.tsv`, `.txt` | ✅ Tab delimiter |
-| 📑 **Pipe-delimited** | `.txt`, `.dat` | ✅ Pipe `\|` delimiter |
-| 🔣 **Custom delimited** | `.*` | ✅ `;` `:` `*` and more |
-| 📦 **JSON** | `.json` | ✅ Structure validation |
+### Main Interface
+Clean, intuitive interface with all the tools you need at your fingertips.
+
+### Validation in Progress
+Real-time progress tracking with row counts and error detection.
+
+### Error Navigator
+Interactive error browser with filtering, sorting, and detailed views.
+
+### Fix & Save Dialog
+Smart save options that combine cleaning operations intelligently.
 
 ---
 
-## 🔎 Error Types Detected
+## 🛠️ Advanced Features
+
+### Error Detection Types
 
 | Error Type | Description |
 |------------|-------------|
-| `COLUMN_COUNT_MISMATCH` | Row has different number of columns than header |
-| `UNCLOSED_QUOTES` | Quotation marks not properly closed |
-| `JSON_PARSE_ERROR` | Invalid JSON syntax |
-| `TYPE_MISMATCH` | Inconsistent data types in JSON arrays |
-| `KEY_MISMATCH` | Missing or extra keys in JSON objects |
-| `EMPTY_FILE` | File contains no data |
-| `FILE_READ_ERROR` | Unable to read file |
+| `COLUMN_COUNT_MISMATCH` | Row has incorrect number of columns |
+| `UNCLOSED_QUOTES` | Quoted field not properly closed |
+| `EMPTY_ROW` | Row contains no data |
+| `DELIMITER_IN_UNQUOTED_FIELD` | Unquoted field contains delimiter |
+| `DUPLICATE_ROW` | Exact duplicate of another row |
+
+### Performance
+- ✅ Handles large files efficiently
+- ✅ Chunked reading for memory efficiency
+- ✅ Configurable error limits to prevent memory overflow
+- ✅ Multi-threaded validation for responsive UI
 
 ---
 
-## 🛠️ Technical Details
+## 🎓 Tips & Tricks
 
-### Architecture
-
-```
-fileproof.py
-├── ValidationReport      # Stores results & generates reports
-├── DelimitedFileValidator  # CSV/TSV/delimited file validation
-├── JSONValidator         # JSON file validation
-└── DataValidatorApp      # Tkinter GUI application
-```
-
-### Key Algorithms
-
-- **Delimiter Detection**: Analyzes first 20 lines, counts delimiters outside quotes, selects most consistent delimiter
-- **Quote-Aware Parsing**: Handles single/double quotes, escaped quotes, and nested delimiters
-- **Streaming Validation**: Processes files line-by-line for memory efficiency
-
----
-
-## 📄 Sample Validation Report
-
-```
-================================================================================
-DATA FILE VALIDATION REPORT
-================================================================================
-
-File: sales_data.csv
-File Size: 15.23 MB
-File Type: Delimited (delimiter: ,)
-Validation Time: 2.34 seconds
-Timestamp: 2025-01-15 14:30:22
-
---------------------------------------------------------------------------------
-VALIDATION RESULT: ✗ FAILED
---------------------------------------------------------------------------------
-
-Total Rows Processed: 150,000
-Valid Rows: 149,847
-Invalid Rows: 153
-Delimiter: ',' (detected)
-Expected Columns: 12
-
-================================================================================
-ERRORS (153 found)
-================================================================================
-
-COLUMN_COUNT_MISMATCH (150 occurrences):
---------------------------------------------------------------------------------
-  Row 1042: Expected 12 columns, found 11
-  Row 2891: Expected 12 columns, found 13
-  ...
-
-UNCLOSED_QUOTES (3 occurrences):
---------------------------------------------------------------------------------
-  Row 50123: Unclosed double quotes detected
-  ...
-
-================================================================================
-END OF REPORT
-================================================================================
-```
+💡 **Pro Tips:**
+- The duplicate checker is on by default - uncheck it if you want faster validation on large files
+- Use the error type filter to focus on specific issues
+- Double-click errors in the table to see the full row content
+- Combine "Export file without errors" and "Remove duplicates" to get a fully cleaned file in one step
+- Export error records separately to analyze patterns in your data issues
 
 ---
 
 ## 🤝 Contributing
 
 Contributions are welcome! Feel free to:
-
 - 🐛 Report bugs
-- 💡 Suggest features  
+- 💡 Suggest new features
 - 🔧 Submit pull requests
+- 📚 Improve documentation
 
 ---
 
-## 📜 License
+## 📝 License
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ---
 
-**⭐ If this project helped you, please consider giving it a star! ⭐**
+## 🌟 Acknowledgments
+
+Built with ❤️ using Python and Tkinter.
+
+Special thanks to everyone who validates data files and knows the pain of inconsistent formats!
+
+---
+
+<div align="center">
+
+ **⭐ If this project helped you, please consider giving it a star! ⭐**
 
 *Developed by [Jack Worthen](https://github.com/jackworthen)*
+
+</div>
