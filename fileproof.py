@@ -26,6 +26,7 @@ class ValidationReport:
         self.expected_columns = 0
         self.errors = []
         self.warnings = []
+        self.duplicates = []
         self.passed = False
         
     def add_error(self, row_num: int, error_type: str, description: str, row_content: str = ""):
@@ -44,6 +45,16 @@ class ValidationReport:
             'type': warning_type,
             'description': description
         })
+    
+    def add_duplicate(self, row_num: int, description: str, row_content: str = ""):
+        """Add a duplicate row to the report."""
+        self.duplicates.append({
+            'row': row_num,
+            'type': 'DUPLICATE_ROW',
+            'description': description,
+            'content': row_content[:500] if row_content else ""
+        })
+        
         
     def generate_report(self) -> str:
         """Generate a formatted text report."""
@@ -107,6 +118,19 @@ class ValidationReport:
                     report.append(f"  Row {warning['row']}: {warning['description']}")
                 if len(warnings) > 10:
                     report.append(f"  ... and {len(warnings) - 10} more similar warnings")
+        
+        if self.duplicates:
+            report.append(f"\n" + "=" * 80)
+            report.append(f"DUPLICATES ({len(self.duplicates)} found)")
+            report.append("=" * 80)
+            report.append("\nNote: Duplicates do not cause validation to fail.\n")
+            
+            # Show first 20 duplicates
+            for duplicate in self.duplicates[:20]:
+                report.append(f"  Row {duplicate['row']}: {duplicate['description']}")
+            if len(self.duplicates) > 20:
+                report.append(f"  ... and {len(self.duplicates) - 20} more duplicates")
+        
         
         if not self.errors and not self.warnings:
             report.append("\n✓ No errors or warnings found. File is valid!")
@@ -291,7 +315,7 @@ class DelimitedFileValidator:
                     
                     if progress_callback and row_num % 1000 == 0:
                         progress = (bytes_processed / self.report.file_size) * 100
-                        progress_callback(progress, row_num)
+                        progress_callback(progress, row_num, len(self.report.errors))
                     
                     line = line.strip()
                     if not line:
@@ -347,6 +371,7 @@ class DelimitedFileValidator:
                             self.report.valid_rows += 1
                 
 
+
                 # Check for duplicates
                 if self.check_duplicates:
                     for row_hash, occurrences in row_hashes.items():
@@ -355,20 +380,18 @@ class DelimitedFileValidator:
                             duplicate_rows = [str(rnum) for rnum, _ in occurrences]
                             for rnum, line_content in occurrences:
                                 other_rows = ', '.join([r for r in duplicate_rows if r != str(rnum)])
-                                self.report.add_error(
+                                self.report.add_duplicate(
                                     rnum,
-                                    "DUPLICATE_ROW",
                                     f"Exact duplicate of row(s): {other_rows}",
                                     line_content
                                 )
-                                self.report.invalid_rows += 1
-                                self.report.valid_rows = max(0, self.report.valid_rows - 1)
                                 
-                                if len(self.report.errors) >= self.max_errors:
+                                if len(self.report.duplicates) >= self.max_errors:
                                     break
                         
-                        if len(self.report.errors) >= self.max_errors:
+                        if len(self.report.duplicates) >= self.max_errors:
                             break
+                
                 
                 self.report.file_type = f"Delimited (delimiter: {repr(self.delimiter).strip(chr(39))})"
                 
@@ -399,7 +422,7 @@ class JSONValidator:
                 content = f.read()
                 
                 if progress_callback:
-                    progress_callback(50, 0)
+                    progress_callback(50, 0, len(self.report.errors))
                 
                 try:
                     data = json.loads(content)
@@ -449,7 +472,7 @@ class JSONValidator:
                         self.report.valid_rows = 1
                     
                     if progress_callback:
-                        progress_callback(100, self.report.total_rows)
+                        progress_callback(100, self.report.total_rows, len(self.report.errors))
                     
                 except json.JSONDecodeError as e:
                     self.report.add_error(e.lineno, "JSON_PARSE_ERROR", 
@@ -500,6 +523,7 @@ class DataValidatorApp:
         self.current_report = None
         self.progress_color_state = 0
         self.all_errors = []  # For error navigator
+        self.all_duplicates = []  # For duplicate tracking
         self.check_duplicates = tk.BooleanVar(value=False)
         
         self.setup_ui()
@@ -592,6 +616,11 @@ class DataValidatorApp:
         self.error_stats_label = ttk.Label(filter_frame, text="No errors", 
                                           font=('Helvetica', 9, 'italic'))
         self.error_stats_label.grid(row=0, column=2, sticky=tk.W, padx=(10, 0))
+        
+        # Duplicate stats label
+        self.duplicate_stats_label = ttk.Label(filter_frame, text="", 
+                                              font=('Helvetica', 9, 'italic'))
+        self.duplicate_stats_label.grid(row=0, column=2, sticky=tk.W, padx=(200, 0))
         
         # Search frame
         search_frame = ttk.Frame(filter_frame)
@@ -729,8 +758,8 @@ class DataValidatorApp:
                 validator = DelimitedFileValidator(filepath, delimiter=delimiter, check_duplicates=self.check_duplicates.get())
             
             # Run validation with progress updates
-            def progress_callback(progress, rows):
-                self.root.after(0, self.update_progress, progress, rows)
+            def progress_callback(progress, rows, errors):
+                self.root.after(0, self.update_progress, progress, rows, errors)
             
             report = validator.validate(progress_callback)
             self.current_report = report
@@ -745,10 +774,16 @@ class DataValidatorApp:
             self.validation_running = False
             self.root.after(0, lambda: self.validate_btn.config(state='normal'))
     
-    def update_progress(self, progress, rows):
+    def update_progress(self, progress, rows, errors=0):
         """Update the progress bar and label - stays blue while processing."""
         self.progress_bar['value'] = progress
         self.progress_label.config(text=f"Processing... {progress:.1f}% ({rows:,} rows)")
+        
+        # Update error count display
+        if errors > 0:
+            self.error_stats_label.config(text=f"{errors:,} error(s) detected")
+        else:
+            self.error_stats_label.config(text="No errors detected yet")
         
         # Keep progress bar blue during processing
         # Color will change to green/red only when validation completes
@@ -796,12 +831,15 @@ class DataValidatorApp:
         
         # Store errors for filtering/sorting
         self.all_errors = report.errors
+        self.all_duplicates = report.duplicates
         
         # Get unique error types for filter
         error_types = ['All Errors']
         if self.all_errors:
             unique_types = sorted(set(error['type'] for error in self.all_errors))
             error_types.extend(unique_types)
+        if self.all_duplicates:
+            error_types.append('DUPLICATE_ROW')
         
         self.filter_combo['values'] = error_types
         self.error_filter.set('All Errors')
@@ -819,20 +857,43 @@ class DataValidatorApp:
                 preview
             ))
         
+        # Add duplicates to table
+        for duplicate in self.all_duplicates:
+            preview = duplicate.get('content', '')[:100]
+            if len(duplicate.get('content', '')) > 100:
+                preview += '...'
+            
+            self.error_table.insert('', 'end', values=(
+                duplicate['row'],
+                duplicate['type'],
+                duplicate['description'],
+                preview
+            ))
+        
+        
         # Update stats
         self.update_error_stats()
+        self.update_duplicate_stats()
     
     def update_error_stats(self):
         """Update the error statistics label."""
-        visible_count = len(self.error_table.get_children())
-        total_count = len(self.all_errors) if hasattr(self, 'all_errors') else 0
+        total_errors = len(self.all_errors) if hasattr(self, 'all_errors') else 0
         
-        if visible_count == 0:
+        if total_errors == 0:
             self.error_stats_label.config(text="No errors found")
-        elif visible_count == total_count:
-            self.error_stats_label.config(text=f"Showing all {total_count} error(s)")
         else:
-            self.error_stats_label.config(text=f"Showing {visible_count} of {total_count} error(s)")
+            self.error_stats_label.config(text=f"Showing {total_errors} error(s)")
+    
+    
+    
+    def update_duplicate_stats(self):
+        """Update the duplicate statistics label."""
+        total_duplicates = len(self.all_duplicates) if hasattr(self, 'all_duplicates') else 0
+        
+        if total_duplicates == 0:
+            self.duplicate_stats_label.config(text="No duplicates")
+        else:
+            self.duplicate_stats_label.config(text=f"{total_duplicates} duplicate(s) found")
     
     def apply_error_filter(self):
         """Filter errors based on selected type."""
@@ -858,6 +919,22 @@ class DataValidatorApp:
                     error['description'],
                     preview
                 ))
+        
+        # Also add filtered duplicates
+        if hasattr(self, 'all_duplicates'):
+            for duplicate in self.all_duplicates:
+                if filter_type == 'All Errors' or duplicate['type'] == filter_type:
+                    preview = duplicate.get('content', '')[:100]
+                    if len(duplicate.get('content', '')) > 100:
+                        preview += '...'
+                    
+                    self.error_table.insert('', 'end', values=(
+                        duplicate['row'],
+                        duplicate['type'],
+                        duplicate['description'],
+                        preview
+                    ))
+        
         
         self.update_error_stats()
     
@@ -1100,8 +1177,10 @@ class DataValidatorApp:
         for item in self.error_table.get_children():
             self.error_table.delete(item)
         self.all_errors = []
+        self.all_duplicates = []
         self.error_filter.set('All Errors')
         self.error_stats_label.config(text="No errors")
+        self.duplicate_stats_label.config(text="")
         
         # Reset progress bar to default blue color
         style = ttk.Style()
