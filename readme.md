@@ -48,7 +48,7 @@ Validate, clean, and fix delimited files (CSV, TSV, pipe-delimited, and more) wi
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/yourusername/fileproof.git
+git clone https://github.com/yjackworthen/fileproof.git
 cd fileproof
 ```
 
