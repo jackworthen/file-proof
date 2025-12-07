@@ -901,6 +901,11 @@ class DataValidatorApp:
     
     def update_duplicate_stats(self):
         """Update the duplicate statistics label."""
+        # Only show duplicate stats if duplicate checking is enabled
+        if not self.check_duplicates.get():
+            self.duplicate_stats_label.config(text="")
+            return
+        
         total_duplicates = len(self.all_duplicates) if hasattr(self, 'all_duplicates') else 0
         
         if total_duplicates == 0:
