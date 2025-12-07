@@ -9,6 +9,7 @@ from collections import defaultdict
 from typing import Dict, List, Tuple, Optional
 import re
 import hashlib
+import webbrowser
 
 class ValidationReport:
     """Stores validation results and generates detailed reports."""
@@ -530,6 +531,15 @@ class DataValidatorApp:
         
     def setup_ui(self):
         """Setup the user interface."""
+        # Create menu bar
+        menubar = tk.Menu(self.root)
+        self.root.config(menu=menubar)
+        
+        # Create Help menu
+        help_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Help", menu=help_menu)
+        help_menu.add_command(label="Documentation", command=self.open_documentation)
+        
         # Main container
         main_frame = ttk.Frame(self.root, padding="10")
         main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
@@ -1191,6 +1201,13 @@ class DataValidatorApp:
                       background='#2196F3',
                       lightcolor='#64B5F6',
                       darkcolor='#1976D2')
+    
+    def open_documentation(self):
+        """Open the documentation URL in the default browser."""
+        try:
+            webbrowser.open("https://github.com/jackworthen/file-proof")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open documentation: {str(e)}")
     
     def show_save_dialog(self):
         """Show dialog for saving options."""
