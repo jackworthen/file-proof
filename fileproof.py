@@ -1325,9 +1325,9 @@ class DataValidatorApp:
                  font=('Helvetica', 10, 'bold')).grid(row=0, column=0, sticky=tk.W, pady=(0, 15))
         
         # Checkboxes
-        self.save_without_errors_var = tk.BooleanVar(value=False)
-        self.remove_duplicates_var = tk.BooleanVar(value=False)
-        self.export_errors_var = tk.BooleanVar(value=False)
+        self.save_without_errors_var = tk.BooleanVar(value=True)
+        self.remove_duplicates_var = tk.BooleanVar(value=True)
+        self.export_errors_var = tk.BooleanVar(value=True)
         
         ttk.Checkbutton(main_frame, text="Export file without error records",
                        variable=self.save_without_errors_var).grid(row=1, column=0, sticky=tk.W, pady=5)
