@@ -29,6 +29,7 @@ class ValidationReport:
         self.warnings = []
         self.duplicates = []
         self.passed = False
+        self.cancelled = False
         
     def add_error(self, row_num: int, error_type: str, description: str, row_content: str = ""):
         """Add an error to the report."""
@@ -71,9 +72,17 @@ class ValidationReport:
         report.append(f"Validation Time: {duration:.2f} seconds")
         report.append(f"Timestamp: {self.end_time.strftime('%Y-%m-%d %H:%M:%S')}\n")
         
-        report.append("-" * 80)
-        report.append("VALIDATION RESULT: " + ("✓ PASSED" if self.passed else "✗ FAILED"))
-        report.append("-" * 80)
+        
+        # Show cancellation or pass/fail status
+        if self.cancelled:
+            report.append("-" * 80)
+            report.append("⚠ VALIDATION CANCELLED BY USER")
+            report.append("-" * 80)
+            report.append(f"\nPartial Results (validated {self.total_rows:,} rows before cancellation)")
+        else:
+            report.append("-" * 80)
+            report.append("VALIDATION RESULT: " + ("✓ PASSED" if self.passed else "✗ FAILED"))
+            report.append("-" * 80)
         
         report.append(f"\nTotal Rows Processed: {self.total_rows:,}")
         report.append(f"Valid Rows: {self.valid_rows:,}")
@@ -133,8 +142,10 @@ class ValidationReport:
                 report.append(f"  ... and {len(self.duplicates) - 20} more duplicates")
         
         
-        if not self.errors and not self.warnings:
+        if not self.errors and not self.warnings and not self.cancelled:
             report.append("\n✓ No errors or warnings found. File is valid!")
+        elif self.cancelled and not self.errors and not self.warnings:
+            report.append("\n✓ No errors or warnings found in scanned portion.")
         
         report.append("\n" + "=" * 80)
         report.append("END OF REPORT")
@@ -162,13 +173,14 @@ class DelimitedFileValidator:
     COMMON_DELIMITERS = [',', '|', '\t', '*', ';', ':']
     
     def __init__(self, filepath: str, delimiter: Optional[str] = None, 
-                 max_errors: int = 1000, chunk_size: int = 8192, check_duplicates: bool = False):
+                 max_errors: int = 1000, chunk_size: int = 8192, check_duplicates: bool = False, cancel_event: Optional[threading.Event] = None):
         self.filepath = filepath
         self.delimiter = delimiter
         self.max_errors = max_errors
         self.chunk_size = chunk_size
         self.check_duplicates = check_duplicates
         self.report = ValidationReport(os.path.basename(filepath))
+        self.cancel_event = cancel_event
         
     def detect_delimiter(self, sample_lines: List[str]) -> str:
         """Detect the delimiter used in the file."""
@@ -314,6 +326,11 @@ class DelimitedFileValidator:
                     row_num += 1
                     bytes_processed += len(line.encode('utf-8'))
                     
+                    # Check for cancellation
+                    if self.cancel_event and self.cancel_event.is_set():
+                        self.report.cancelled = True
+                        break
+                    
                     if progress_callback and row_num % 1000 == 0:
                         progress = (bytes_processed / self.report.file_size) * 100
                         progress_callback(progress, row_num, len(self.report.errors))
@@ -407,10 +424,11 @@ class DelimitedFileValidator:
 class JSONValidator:
     """Validates JSON files."""
     
-    def __init__(self, filepath: str, max_errors: int = 1000):
+    def __init__(self, filepath: str, max_errors: int = 1000, cancel_event: Optional[threading.Event] = None):
         self.filepath = filepath
         self.max_errors = max_errors
         self.report = ValidationReport(os.path.basename(filepath))
+        self.cancel_event = cancel_event
         
     def validate(self, progress_callback=None) -> ValidationReport:
         """Validate the JSON file."""
@@ -439,6 +457,11 @@ class JSONValidator:
                             self.report.expected_columns = len(expected_keys)
                             
                             for idx, item in enumerate(data[1:], start=2):
+                                # Check for cancellation
+                                if self.cancel_event and self.cancel_event.is_set():
+                                    self.report.cancelled = True
+                                    break
+                                    
                                 if not isinstance(item, dict):
                                     self.report.invalid_rows += 1
                                     self.report.valid_rows -= 1
@@ -526,6 +549,7 @@ class DataValidatorApp:
         self.all_errors = []  # For error navigator
         self.all_duplicates = []  # For duplicate tracking
         self.check_duplicates = tk.BooleanVar(value=True)
+        self.cancel_event = threading.Event()  # For cancelling validation
         
         self.setup_ui()
         
@@ -565,6 +589,12 @@ class DataValidatorApp:
                                        command=self.start_validation,
                                        style='Accent.TButton')
         self.validate_btn.grid(row=0, column=3, sticky=tk.E)
+        
+        # Cancel button
+        self.cancel_btn = ttk.Button(file_frame, text="❌ Cancel", 
+                                     command=self.cancel_validation,
+                                     state='disabled')
+        self.cancel_btn.grid(row=0, column=4, sticky=tk.E, padx=(5, 0))
         
         # Duplicate detection checkbox
         ttk.Checkbutton(file_frame, text="Check for duplicate rows", 
@@ -730,12 +760,20 @@ class DataValidatorApp:
         
         self.validation_running = True
         self.validate_btn.config(state='disabled')
+        self.cancel_event.clear()  # Clear any previous cancel signal
+        self.cancel_btn.config(state='normal')  # Enable cancel button
         self.clear_results()
         
         # Run validation in separate thread
         thread = threading.Thread(target=self.run_validation)
         thread.daemon = True
         thread.start()
+    
+    def cancel_validation(self):
+        """Cancel the currently running validation."""
+        if self.validation_running:
+            self.cancel_event.set()  # Signal cancellation
+            self.cancel_btn.config(state='disabled')
     
     def run_validation(self):
         """Run the validation process."""
@@ -766,9 +804,9 @@ class DataValidatorApp:
             
             # Create appropriate validator
             if filetype == 'json':
-                validator = JSONValidator(filepath)
+                validator = JSONValidator(filepath, cancel_event=self.cancel_event)
             else:
-                validator = DelimitedFileValidator(filepath, delimiter=delimiter, check_duplicates=self.check_duplicates.get())
+                validator = DelimitedFileValidator(filepath, delimiter=delimiter, check_duplicates=self.check_duplicates.get(), cancel_event=self.cancel_event)
             
             # Run validation with progress updates
             def progress_callback(progress, rows, errors):
@@ -786,6 +824,7 @@ class DataValidatorApp:
         finally:
             self.validation_running = False
             self.root.after(0, lambda: self.validate_btn.config(state='normal'))
+            self.root.after(0, lambda: self.cancel_btn.config(state='disabled'))
     
     def update_progress(self, progress, rows, errors=0):
         """Update the progress bar and label - stays blue while processing."""
@@ -805,8 +844,25 @@ class DataValidatorApp:
     
     def display_results(self, report: ValidationReport):
         """Display validation results in the error navigator."""
+        # Re-enable validate button and disable cancel button
+        self.validation_running = False
+        self.validate_btn.config(state='normal')
+        self.cancel_btn.config(state='disabled')
+        
         # Color code the result with enhanced styling
-        if report.passed:
+        if report.cancelled:
+            self.progress_label.config(
+                text=f"⚠ Validation Cancelled - {report.total_rows:,} rows scanned, {len(report.errors)} error(s) found", 
+                foreground='#FF9800',
+                font=('Helvetica', 10, 'bold')
+            )
+            # Set progress bar to orange for cancellation
+            style = ttk.Style()
+            style.configure("Colorful.Horizontal.TProgressbar",
+                          background='#FF9800',
+                          lightcolor='#FFB74D',
+                          darkcolor='#F57C00')
+        elif report.passed:
             self.progress_label.config(
                 text="✓ Validation Passed - File is Valid!", 
                 foreground='#4CAF50',
