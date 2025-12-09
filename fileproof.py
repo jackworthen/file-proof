@@ -550,6 +550,7 @@ class DataValidatorApp:
         self.all_duplicates = []  # For duplicate tracking
         self.check_duplicates = tk.BooleanVar(value=True)
         self.cancel_event = threading.Event()  # For cancelling validation
+        self.validation_completed = False  # Track if full validation completed (not cancelled)
         
         self.setup_ui()
         
@@ -631,8 +632,9 @@ class DataValidatorApp:
                   command=self.save_report).grid(row=0, column=0, padx=5)
         ttk.Button(buttons_frame, text="Clear", 
                   command=self.clear_results).grid(row=0, column=1, padx=5)
-        ttk.Button(buttons_frame, text="Fix & Save", 
-                  command=self.show_save_dialog).grid(row=0, column=2, padx=5)
+        self.fix_save_btn = ttk.Button(buttons_frame, text="Fix & Save", 
+                  command=self.show_save_dialog, state='disabled')
+        self.fix_save_btn.grid(row=0, column=2, padx=5)
     
     def setup_error_navigator(self, parent_frame):
         """Setup the interactive error navigation panel."""
@@ -762,6 +764,8 @@ class DataValidatorApp:
         self.validate_btn.config(state='disabled')
         self.cancel_event.clear()  # Clear any previous cancel signal
         self.cancel_btn.config(state='normal')  # Enable cancel button
+        self.validation_completed = False  # Reset completion flag
+        self.fix_save_btn.config(state='disabled')  # Disable Fix & Save until validation completes
         self.clear_results()
         
         # Run validation in separate thread
@@ -848,6 +852,14 @@ class DataValidatorApp:
         self.validation_running = False
         self.validate_btn.config(state='normal')
         self.cancel_btn.config(state='disabled')
+        
+        # Enable Fix & Save button only if validation completed (not cancelled)
+        if not report.cancelled:
+            self.validation_completed = True
+            self.fix_save_btn.config(state='normal')
+        else:
+            self.validation_completed = False
+            self.fix_save_btn.config(state='disabled')
         
         # Color code the result with enhanced styling
         if report.cancelled:
@@ -1256,6 +1268,10 @@ class DataValidatorApp:
         self.error_stats_label.config(text="No errors")
         self.duplicate_stats_label.config(text="")
         
+        # Reset validation state and disable Fix & Save button
+        self.validation_completed = False
+        self.fix_save_btn.config(state='disabled')
+        
         # Reset progress bar to default blue color
         style = ttk.Style()
         style.configure("Colorful.Horizontal.TProgressbar",
@@ -1278,6 +1294,11 @@ class DataValidatorApp:
         
         if not hasattr(self, 'last_validated_file'):
             messagebox.showwarning("Save", "Original file path not available.")
+            return
+        
+        # Check if validation completed without cancellation
+        if not self.validation_completed or (hasattr(self.current_report, 'cancelled') and self.current_report.cancelled):
+            messagebox.showwarning("Save", "Cannot use Fix & Save on an incomplete validation. Please run a complete validation scan first.")
             return
         
         # Create dialog window
