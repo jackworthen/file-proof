@@ -1342,7 +1342,7 @@ class DataValidatorApp:
         # Create dialog window
         dialog = tk.Toplevel(self.root)
         dialog.title("Save Options")
-        dialog.geometry("365x280")
+        dialog.geometry("420x400")
         dialog.transient(self.root)
         dialog.grab_set()
         
@@ -1372,35 +1372,42 @@ class DataValidatorApp:
         self.export_errors_var = tk.BooleanVar(value=has_errors)
         self.export_duplicates_var = tk.BooleanVar(value=has_duplicates)
         
-        # Create checkboxes with conditional states
-        save_without_errors_cb = ttk.Checkbutton(main_frame, text="Export file without error records",
+        # Error-related options frame
+        error_frame = ttk.LabelFrame(main_frame, text="Error Options", padding="10")
+        error_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        
+        save_without_errors_cb = ttk.Checkbutton(error_frame, text="Export file without error records",
                        variable=self.save_without_errors_var,
                        state='normal' if has_errors else 'disabled')
-        save_without_errors_cb.grid(row=1, column=0, sticky=tk.W, pady=5)
+        save_without_errors_cb.grid(row=0, column=0, sticky=tk.W, pady=5)
         
-        remove_duplicates_cb = ttk.Checkbutton(main_frame, text="Remove duplicate records",
-                       variable=self.remove_duplicates_var,
-                       state='normal' if has_duplicates else 'disabled')
-        remove_duplicates_cb.grid(row=2, column=0, sticky=tk.W, pady=5)
-        
-        export_errors_cb = ttk.Checkbutton(main_frame, text="Export error records",
+        export_errors_cb = ttk.Checkbutton(error_frame, text="Export error records",
                        variable=self.export_errors_var,
                        state='normal' if has_errors else 'disabled')
-        export_errors_cb.grid(row=3, column=0, sticky=tk.W, pady=5)
+        export_errors_cb.grid(row=1, column=0, sticky=tk.W, pady=5)
         
-        export_duplicates_cb = ttk.Checkbutton(main_frame, text="Export duplicate records",
+        # Duplicate-related options frame
+        duplicate_frame = ttk.LabelFrame(main_frame, text="Duplicate Options", padding="10")
+        duplicate_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        
+        remove_duplicates_cb = ttk.Checkbutton(duplicate_frame, text="Remove duplicate records",
+                       variable=self.remove_duplicates_var,
+                       state='normal' if has_duplicates else 'disabled')
+        remove_duplicates_cb.grid(row=0, column=0, sticky=tk.W, pady=5)
+        
+        export_duplicates_cb = ttk.Checkbutton(duplicate_frame, text="Export duplicate records",
                        variable=self.export_duplicates_var,
                        state='normal' if has_duplicates else 'disabled')
-        export_duplicates_cb.grid(row=4, column=0, sticky=tk.W, pady=5)
+        export_duplicates_cb.grid(row=1, column=0, sticky=tk.W, pady=5)
         
         # Info label
-        info_text = "Note: Options 1 & 2 will save to the same file if both are selected."
+        info_text = "Note: 'Export file without error records' & 'Remove duplicate records' will save to the same file if both are selected."
         ttk.Label(main_frame, text=info_text, foreground='gray', 
-                 font=('Helvetica', 8)).grid(row=5, column=0, sticky=tk.W, pady=(15, 0))
+                 font=('Helvetica', 8), wraplength=380).grid(row=3, column=0, sticky=tk.W, pady=(15, 0))
         
         # Button frame
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=6, column=0, sticky=tk.E, pady=(20, 0))
+        button_frame.grid(row=4, column=0, pady=(20, 0))
         
         def on_save():
             if not self.save_without_errors_var.get() and not self.remove_duplicates_var.get() and not self.export_errors_var.get() and not self.export_duplicates_var.get():
