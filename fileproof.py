@@ -628,10 +628,12 @@ class DataValidatorApp:
         buttons_frame = ttk.Frame(main_frame)
         buttons_frame.grid(row=3, column=0, sticky=tk.E)
         
-        ttk.Button(buttons_frame, text="Save Report", 
-                  command=self.save_report).grid(row=0, column=0, padx=5)
-        ttk.Button(buttons_frame, text="Clear", 
-                  command=self.clear_results).grid(row=0, column=1, padx=5)
+        self.save_report_btn = ttk.Button(buttons_frame, text="Save Report", 
+                  command=self.save_report, state='disabled')
+        self.save_report_btn.grid(row=0, column=0, padx=5)
+        self.clear_btn = ttk.Button(buttons_frame, text="Clear", 
+                  command=self.clear_results, state='disabled')
+        self.clear_btn.grid(row=0, column=1, padx=5)
         self.fix_save_btn = ttk.Button(buttons_frame, text="Fix & Save", 
                   command=self.show_save_dialog, state='disabled')
         self.fix_save_btn.grid(row=0, column=2, padx=5)
@@ -720,10 +722,12 @@ class DataValidatorApp:
         action_frame = ttk.Frame(parent_frame, padding="5")
         action_frame.grid(row=2, column=0, sticky=tk.E, pady=(10, 0))
         
-        ttk.Button(action_frame, text="📋 Copy Row Numbers", 
-                  command=self.copy_error_rows).grid(row=0, column=0, padx=5)
-        ttk.Button(action_frame, text="🔍 Show All Details", 
-                  command=self.show_all_error_details).grid(row=0, column=1, padx=5)
+        self.copy_rows_btn = ttk.Button(action_frame, text="📋 Copy Row Numbers", 
+                  command=self.copy_error_rows, state='disabled')
+        self.copy_rows_btn.grid(row=0, column=0, padx=5)
+        self.show_details_btn = ttk.Button(action_frame, text="🔍 Show All Details", 
+                  command=self.show_all_error_details, state='disabled')
+        self.show_details_btn.grid(row=0, column=1, padx=5)
         
         # Initialize sort state
         self.sort_column = 'row'
@@ -866,6 +870,14 @@ class DataValidatorApp:
         else:
             self.validation_completed = False
             self.fix_save_btn.config(state='disabled')
+        
+        # Enable Save Report and action buttons if any data was returned (even if cancelled)
+        # This allows users to save partial results and interact with the data
+        if report.total_rows > 0 or len(report.errors) > 0 or len(report.duplicates) > 0:
+            self.save_report_btn.config(state='normal')
+            self.copy_rows_btn.config(state='normal')
+            self.show_details_btn.config(state='normal')
+            self.clear_btn.config(state='normal')
         
         # Color code the result with enhanced styling
         if report.cancelled:
@@ -1291,6 +1303,12 @@ class DataValidatorApp:
         # Reset validation state and disable Fix & Save button
         self.validation_completed = False
         self.fix_save_btn.config(state='disabled')
+        
+        # Disable Save Report and action buttons since there's no data
+        self.save_report_btn.config(state='disabled')
+        self.copy_rows_btn.config(state='disabled')
+        self.show_details_btn.config(state='disabled')
+        self.clear_btn.config(state='disabled')
         
         # Reset progress bar to default blue color
         style = ttk.Style()
