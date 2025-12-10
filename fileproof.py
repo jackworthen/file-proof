@@ -664,7 +664,7 @@ class DataValidatorApp:
         # Duplicate stats label
         self.duplicate_stats_label = ttk.Label(filter_frame, text="", 
                                               font=('Helvetica', 9, 'italic'))
-        self.duplicate_stats_label.grid(row=0, column=2, sticky=tk.W, padx=(200, 0))
+        self.duplicate_stats_label.grid(row=0, column=2, sticky=tk.W, padx=(130, 0))
         
         # Search frame
         search_frame = ttk.Frame(filter_frame)
@@ -1086,7 +1086,7 @@ class DataValidatorApp:
             self.error_table.move(item, '', index)
     
     def show_error_detail(self, event):
-        """Show detailed information for selected error (double-click)."""
+        """Show detailed information for selected error or duplicate (double-click)."""
         selection = self.error_table.selection()
         if not selection:
             return
@@ -1094,20 +1094,33 @@ class DataValidatorApp:
         item = selection[0]
         values = self.error_table.item(item)['values']
         
-        # Find the full error data
+        # Find the full error or duplicate data
         row_num = values[0]
-        error_data = None
+        error_type = values[1]
+        data = None
+        is_duplicate = False
+        
+        # First check in errors
         for error in self.all_errors:
-            if error['row'] == row_num:
-                error_data = error
+            if error['row'] == row_num and error['type'] == error_type:
+                data = error
                 break
         
-        if not error_data:
+        # If not found in errors, check duplicates
+        if not data:
+            for duplicate in self.all_duplicates:
+                if duplicate['row'] == row_num:
+                    data = duplicate
+                    is_duplicate = True
+                    break
+        
+        if not data:
             return
         
         # Create detail window
         detail_window = tk.Toplevel(self.root)
-        detail_window.title(f"Error Detail - Row {row_num}")
+        window_title = f"Duplicate Detail - Row {row_num}" if is_duplicate else f"Error Detail - Row {row_num}"
+        detail_window.title(window_title)
         detail_window.geometry("700x400")
         
         # Detail frame
@@ -1118,20 +1131,21 @@ class DataValidatorApp:
         detail_frame.columnconfigure(1, weight=1)
         detail_frame.rowconfigure(4, weight=1)
         
-        # Error information
+        # Information labels
         ttk.Label(detail_frame, text="Row Number:", font=('Helvetica', 9, 'bold')).grid(
             row=0, column=0, sticky=tk.W, pady=5)
-        ttk.Label(detail_frame, text=str(error_data['row'])).grid(
+        ttk.Label(detail_frame, text=str(data['row'])).grid(
             row=0, column=1, sticky=tk.W, pady=5)
         
-        ttk.Label(detail_frame, text="Error Type:", font=('Helvetica', 9, 'bold')).grid(
+        type_label = "Type:" if is_duplicate else "Error Type:"
+        ttk.Label(detail_frame, text=type_label, font=('Helvetica', 9, 'bold')).grid(
             row=1, column=0, sticky=tk.W, pady=5)
-        ttk.Label(detail_frame, text=error_data['type']).grid(
+        ttk.Label(detail_frame, text=data['type']).grid(
             row=1, column=1, sticky=tk.W, pady=5)
         
         ttk.Label(detail_frame, text="Description:", font=('Helvetica', 9, 'bold')).grid(
             row=2, column=0, sticky=tk.W, pady=5)
-        ttk.Label(detail_frame, text=error_data['description'], wraplength=500).grid(
+        ttk.Label(detail_frame, text=data['description'], wraplength=500).grid(
             row=2, column=1, sticky=tk.W, pady=5)
         
         ttk.Label(detail_frame, text="Row Content:", font=('Helvetica', 9, 'bold')).grid(
@@ -1141,7 +1155,7 @@ class DataValidatorApp:
         content_text = scrolledtext.ScrolledText(detail_frame, wrap=tk.WORD, 
                                                  height=10, font=('Courier', 9))
         content_text.grid(row=4, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
-        content_text.insert('1.0', error_data.get('content', 'No content available'))
+        content_text.insert('1.0', data.get('content', 'No content available'))
         content_text.config(state='disabled')
         
         # Close button
