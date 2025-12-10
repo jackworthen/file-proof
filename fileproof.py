@@ -1324,7 +1324,7 @@ class DataValidatorApp:
         # Create dialog window
         dialog = tk.Toplevel(self.root)
         dialog.title("Save Options")
-        dialog.geometry("365x250")
+        dialog.geometry("365x280")
         dialog.transient(self.root)
         dialog.grab_set()
         
@@ -1352,6 +1352,7 @@ class DataValidatorApp:
         self.save_without_errors_var = tk.BooleanVar(value=has_errors)
         self.remove_duplicates_var = tk.BooleanVar(value=has_duplicates)
         self.export_errors_var = tk.BooleanVar(value=has_errors)
+        self.export_duplicates_var = tk.BooleanVar(value=has_duplicates)
         
         # Create checkboxes with conditional states
         save_without_errors_cb = ttk.Checkbutton(main_frame, text="Export file without error records",
@@ -1369,17 +1370,22 @@ class DataValidatorApp:
                        state='normal' if has_errors else 'disabled')
         export_errors_cb.grid(row=3, column=0, sticky=tk.W, pady=5)
         
+        export_duplicates_cb = ttk.Checkbutton(main_frame, text="Export duplicate records",
+                       variable=self.export_duplicates_var,
+                       state='normal' if has_duplicates else 'disabled')
+        export_duplicates_cb.grid(row=4, column=0, sticky=tk.W, pady=5)
+        
         # Info label
         info_text = "Note: Options 1 & 2 will save to the same file if both are selected."
         ttk.Label(main_frame, text=info_text, foreground='gray', 
-                 font=('Helvetica', 8)).grid(row=4, column=0, sticky=tk.W, pady=(15, 0))
+                 font=('Helvetica', 8)).grid(row=5, column=0, sticky=tk.W, pady=(15, 0))
         
         # Button frame
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=5, column=0, sticky=tk.E, pady=(20, 0))
+        button_frame.grid(row=6, column=0, sticky=tk.E, pady=(20, 0))
         
         def on_save():
-            if not self.save_without_errors_var.get() and not self.remove_duplicates_var.get() and not self.export_errors_var.get():
+            if not self.save_without_errors_var.get() and not self.remove_duplicates_var.get() and not self.export_errors_var.get() and not self.export_duplicates_var.get():
                 messagebox.showwarning("Save", "Please select at least one option.")
                 return
             dialog.destroy()
@@ -1480,6 +1486,27 @@ class DataValidatorApp:
                             if i in error_rows:
                                 f.write(line)
                     saved_files.append(f"Error records only: {filename}")
+            
+            # Option 4: Export duplicate records
+            if self.export_duplicates_var.get():
+                filename = filedialog.asksaveasfilename(
+                    title="Save Duplicate Records Only",
+                    defaultextension=".csv",
+                    filetypes=[("CSV files", "*.csv"), ("Text files", "*.txt"), ("All files", "*.*")],
+                    initialfile=f"{os.path.splitext(os.path.basename(self.last_validated_file))[0]}_duplicates_only.csv"
+                )
+                
+                if filename:
+                    with open(filename, 'w', encoding='utf-8', newline='') as f:
+                        # Write header if it exists (row 1)
+                        if len(lines) > 0 and 1 not in duplicate_rows:
+                            f.write(lines[0])
+                        
+                        # Write only duplicate rows
+                        for i, line in enumerate(lines, 1):
+                            if i in duplicate_rows:
+                                f.write(line)
+                    saved_files.append(f"Duplicate records only: {filename}")
             
             # Show success message
             if saved_files:
