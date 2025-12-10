@@ -853,10 +853,16 @@ class DataValidatorApp:
         self.validate_btn.config(state='normal')
         self.cancel_btn.config(state='disabled')
         
-        # Enable Fix & Save button only if validation completed (not cancelled)
+        # Enable Fix & Save button only if validation completed AND there are errors or duplicates
         if not report.cancelled:
             self.validation_completed = True
-            self.fix_save_btn.config(state='normal')
+            # Only enable Fix & Save if there are errors or duplicates to fix
+            has_errors = len(report.errors) > 0
+            has_duplicates = len(report.duplicates) > 0
+            if has_errors or has_duplicates:
+                self.fix_save_btn.config(state='normal')
+            else:
+                self.fix_save_btn.config(state='disabled')
         else:
             self.validation_completed = False
             self.fix_save_btn.config(state='disabled')
@@ -1324,19 +1330,30 @@ class DataValidatorApp:
         ttk.Label(main_frame, text="Select save options:", 
                  font=('Helvetica', 10, 'bold')).grid(row=0, column=0, sticky=tk.W, pady=(0, 15))
         
-        # Checkboxes
-        self.save_without_errors_var = tk.BooleanVar(value=True)
-        self.remove_duplicates_var = tk.BooleanVar(value=True)
-        self.export_errors_var = tk.BooleanVar(value=True)
+        # Checkboxes - determine what's available based on validation results
+        has_errors = len(self.current_report.errors) > 0
+        has_duplicates = len(self.current_report.duplicates) > 0
         
-        ttk.Checkbutton(main_frame, text="Export file without error records",
-                       variable=self.save_without_errors_var).grid(row=1, column=0, sticky=tk.W, pady=5)
+        # Set default values and states based on what was found
+        self.save_without_errors_var = tk.BooleanVar(value=has_errors)
+        self.remove_duplicates_var = tk.BooleanVar(value=has_duplicates)
+        self.export_errors_var = tk.BooleanVar(value=has_errors)
         
-        ttk.Checkbutton(main_frame, text="Remove duplicate records",
-                       variable=self.remove_duplicates_var).grid(row=2, column=0, sticky=tk.W, pady=5)
+        # Create checkboxes with conditional states
+        save_without_errors_cb = ttk.Checkbutton(main_frame, text="Export file without error records",
+                       variable=self.save_without_errors_var,
+                       state='normal' if has_errors else 'disabled')
+        save_without_errors_cb.grid(row=1, column=0, sticky=tk.W, pady=5)
         
-        ttk.Checkbutton(main_frame, text="Export error records",
-                       variable=self.export_errors_var).grid(row=3, column=0, sticky=tk.W, pady=5)
+        remove_duplicates_cb = ttk.Checkbutton(main_frame, text="Remove duplicate records",
+                       variable=self.remove_duplicates_var,
+                       state='normal' if has_duplicates else 'disabled')
+        remove_duplicates_cb.grid(row=2, column=0, sticky=tk.W, pady=5)
+        
+        export_errors_cb = ttk.Checkbutton(main_frame, text="Export error records",
+                       variable=self.export_errors_var,
+                       state='normal' if has_errors else 'disabled')
+        export_errors_cb.grid(row=3, column=0, sticky=tk.W, pady=5)
         
         # Info label
         info_text = "Note: Options 1 & 2 will save to the same file if both are selected."
