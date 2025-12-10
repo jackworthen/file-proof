@@ -86,6 +86,7 @@ That's it! No external dependencies required. 🎉
      - ✅ **Export file without error records** - Get a clean file with errors removed
      - 🔄 **Remove duplicate records** - Eliminate duplicates (keeps one instance)
      - ⚠️ **Export error records** - Save only the problematic rows for analysis
+     - 👥 **Export duplicate records** - Save only the duplicate records to a separate file for review
    - Options 1 & 2 combine into a single clean file if both are selected!
 
 5. **💾 Export Reports**
