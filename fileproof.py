@@ -531,15 +531,25 @@ class DataValidatorApp:
                        lightcolor='#81C784',
                        darkcolor='#388E3C')
         
-        # Create accent button style with lighter blue
+        # Create accent button style (Green)
         style.configure('Accent.TButton',
-                       background='#90CAF9',  # Light blue
+                       background='#A5D6A7',  # Light Green
                        foreground='#000000',
                        borderwidth=1,
                        focuscolor='none',
                        font=('Helvetica', 10, 'bold'))
         style.map('Accent.TButton',
-                 background=[('active', '#64B5F6')])
+                 background=[('active', '#81C784')])
+        
+        # Create cancel button style (Red)
+        style.configure('Cancel.TButton',
+                       background='#EF9A9A',  # Light Red
+                       foreground='#000000',
+                       borderwidth=1,
+                       focuscolor='none',
+                       font=('Helvetica', 10, 'bold'))
+        style.map('Cancel.TButton',
+                 background=[('active', '#EF5350'), ('disabled', '#E0E0E0')])
         
         # Variables
         self.filepath = tk.StringVar()
@@ -594,7 +604,8 @@ class DataValidatorApp:
         # Cancel button
         self.cancel_btn = ttk.Button(file_frame, text="❌ Cancel", 
                                      command=self.cancel_validation,
-                                     state='disabled')
+                                     state='disabled',
+                                     style='Cancel.TButton')
         self.cancel_btn.grid(row=0, column=4, sticky=tk.E, padx=(5, 0))
         
         # Duplicate detection checkbox
