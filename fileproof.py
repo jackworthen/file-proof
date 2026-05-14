@@ -1353,7 +1353,7 @@ class DataValidatorApp:
         # Create dialog window
         dialog = tk.Toplevel(self.root)
         dialog.title("Save Options")
-        dialog.geometry("420x400")
+        dialog.geometry("440x450")
         dialog.transient(self.root)
         dialog.grab_set()
         
@@ -1414,7 +1414,7 @@ class DataValidatorApp:
         # Info label
         info_text = "Note: 'Export file without error records' & 'Remove duplicate records' will save to the same file if both are selected."
         ttk.Label(main_frame, text=info_text, foreground='gray', 
-                 font=('Helvetica', 8), wraplength=380).grid(row=3, column=0, sticky=tk.W, pady=(15, 0))
+                 font=('Helvetica', 8), wraplength=400).grid(row=3, column=0, sticky=tk.W, pady=(15, 0))
         
         # Button frame
         button_frame = ttk.Frame(main_frame)
